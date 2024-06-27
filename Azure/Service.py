@@ -222,7 +222,7 @@ def check_for_closed_trades():
         # Format the date and time
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     
-        time.sleep(5)
+        #time.sleep(1)
         #select all trades from tbl_ActiveTrade
         DB_CONNECTION = dbPath
         db_conn = sqlite3.connect(DB_CONNECTION)

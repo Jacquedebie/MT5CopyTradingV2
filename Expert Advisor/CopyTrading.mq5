@@ -52,7 +52,7 @@ void OpenTrade(string json)
     if (jsonObj.Deserialize(json))
     {
         string symbol = jsonObj["Symbol"].ToStr();
-        ENUM_ORDER_TYPE orderType = (ENUM_ORDER_TYPE)StringToInteger(jsonObj["orderType"].ToStr());
+        ENUM_ORDER_TYPE orderType = (ENUM_ORDER_TYPE)StringToInteger(jsonObj["Type"].ToStr());
         double volume = jsonObj["Volume"].ToDbl();
         double price = jsonObj["Open Price"].ToDbl();
         double sl = jsonObj["SL"].ToDbl(); 
@@ -68,6 +68,7 @@ void OpenTrade(string json)
                 result = trade.Buy(volume, symbol, price, sl, tp, comment);
                 break;
             case ORDER_TYPE_SELL:
+                trade.SetExpertMagicNumber(magicNumber);   
                 result = trade.Sell(volume, symbol, price, sl, tp, comment);
                 break;
             default:
