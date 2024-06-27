@@ -161,8 +161,8 @@ bool HTTPSend(int socket, string request)
 
 bool HTTPRecv(int socket, uint timeout)
 {
-    char rsp[2000];  // Increase buffer size to handle larger messages
-    string result;
+    char rsp[2000];  // Buffer size set to 2000 to handle large messages
+    string buffer = "";  // Buffer to accumulate incoming data
     uint timeout_check = GetTickCount() + timeout;
 
     while (GetTickCount() < timeout_check && !IsStopped())
@@ -175,7 +175,29 @@ bool HTTPRecv(int socket, uint timeout)
 
             if (rsp_len > 0)
             {
-                result += CharArrayToString(rsp, 0, rsp_len);
+                string partial_result = CharArrayToString(rsp, 0, rsp_len);
+                buffer += partial_result;
+
+                // Check for complete JSON messages in the buffer
+                while (true)
+                {
+                    int start_pos = StringFind(buffer, "{");
+                    int end_pos = StringFind(buffer, "}");
+
+                    if (start_pos != -1 && end_pos != -1 && end_pos > start_pos)
+                    {
+                        // Extract complete JSON message
+                        string complete_json = StringSubstr(buffer, start_pos, end_pos - start_pos + 1);
+                        RequestHandler(complete_json);
+
+                        // Remove processed JSON message from buffer
+                        buffer = StringSubstr(buffer, end_pos + 1);
+                    }
+                    else
+                    {
+                        break;  // No complete JSON message found, exit the loop
+                    }
+                }
             }
             else if (rsp_len == -1)
             {
@@ -184,21 +206,12 @@ bool HTTPRecv(int socket, uint timeout)
             }
         }
 
-        // Add a short sleep to avoid busy-waiting
         Sleep(10);
     }
 
-    if (StringLen(result) > 0)
-    {
-        RequestHandler(result);
-        return true;
-    }
-    else
-    {
-        //Print("No data received within timeout period");
-        return false;
-    }
+    return StringLen(buffer) > 0;
 }
+
 
 void ConnectToServer()
 {
@@ -250,7 +263,7 @@ void OnTick()
     {
         if (HTTPRecv(socket, 5000))
         {
-            
+ 
         }
     }
 }
