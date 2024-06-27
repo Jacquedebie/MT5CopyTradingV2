@@ -29,12 +29,27 @@ class AccountList:
         self.accountList_Name = accountList_Name
 
 def RequestHandler(json_string):
-    json_data = json.loads(json_string)
+    try:
+        json_data = json.loads(json_string)
 
-    case = {
-        "TradeStatus": lambda: TradeStatus(json_data),
-        "TradeProfit": lambda: TradeProfit(json_data)
-    }
+        case = {
+            "TradeStatus": lambda: TradeStatus(json_data),
+            "TradeProfit": lambda: TradeProfit(json_data)
+        }
+
+        action = json_data.get('Code')
+
+        if action == "TradeStatus":
+            TradeStatus(json_data)
+        elif action == "TradeProfit":
+            TradeProfit(json_data)
+        elif action == "ClientConnected":
+            print("ClientConnected request received" + json_string)
+            
+        
+    
+    except json.JSONDecodeError:
+        return "Invalid JSON string."
 
 def TradeStatus(json_data):
     print("TradeStatus")
@@ -99,7 +114,7 @@ def listen_for_messages():
             try:
                 message = client_socket.recv(1024)
                 if message:
-                    print(f"Message from client: {message.decode('utf-8')}" + formatted_time + "\n")
+                    RequestHandler(message.decode('utf-8'))
                 else:
                     connected_clients.remove(client_socket)
                     client_socket.close()
