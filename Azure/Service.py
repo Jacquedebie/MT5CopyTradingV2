@@ -28,6 +28,14 @@ class AccountList:
         self.accountList_Number = accountList_Number
         self.accountList_Name = accountList_Name
 
+def AddCommunication(accountNumber, message):
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber,tbl_Communication_Message) VALUES (?,?)", (accountNumber,message))
+    db_conn.commit()
+    db_conn.close()
+
 def RequestHandler(json_string):
     try:
         json_data = json.loads(json_string)
@@ -45,8 +53,7 @@ def RequestHandler(json_string):
             TradeProfit(json_data)
         elif action == "ClientConnected":
             print("ClientConnected request received" + json_string)
-            
-        
+            AddCommunication(json_data.get('ClientID'),json_string)
     
     except json.JSONDecodeError:
         return "Invalid JSON string."
@@ -174,8 +181,11 @@ def check_for_new_trades():
                     trade_details_json = json.dumps(trade_details)
                     for client_socket in connected_clients:
                         try:
+                            print(client_socket)
                             client_socket.sendall(trade_details_json.encode('utf-8'))
                             print("Trade sent to client " +  formatted_time + "\n")
+                            #JDB Log communication
+                            #AddCommunication(AccountNr???,"Trade sent to client " +  formatted_time)
                         except Exception as e:
                             print(f"Error sending trade details to client: {e}")
                             try:
@@ -206,8 +216,11 @@ def closeTradeOnAllAccounts(ticket):
         try:
             client_socket.sendall(trade_details_json.encode('utf-8'))
             print("Close Trade sent to client" + formatted_time + "\n")
+            #JDB Log communication
+            #AddCommunication(AccountNr???,"Trade sent to client " +  formatted_time)
         except Exception as e:
             print(f"Error sending trade details to client: {e}")
+            #AddCommunication(AccountNr???,f"Error sending trade details to client: {e}")
             try:
                 if client_socket in connected_clients:
                     connected_clients.remove(client_socket)
