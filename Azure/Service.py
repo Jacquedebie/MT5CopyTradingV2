@@ -3,6 +3,7 @@ import json
 import socket
 import threading
 import time
+import uuid
 import MetaTrader5 as mt5
 import os
 import sqlite3
@@ -12,16 +13,16 @@ from datetime import datetime
 ADDRESS = "127.0.0.1"
 PORT = 9094
 
-connected_clients = []
+ClientSockets = {}
+
 sent_trades = set()
 
 dbPath = ""
 
-
 def print_to_console_and_file(message):
     with open("C:/Temp/output.txt", "a") as outputfile:
-        print(message, file=outputfile)  # Print to the file
-    print(message)  # Print to the console
+        print(message, file=outputfile)  
+    print(message)  
 
 class AccountList:
     def __init__(self, accountList_Number,accountList_Name):
@@ -36,7 +37,9 @@ def AddCommunication(accountNumber, message):
     db_conn.commit()
     db_conn.close()
 
-def RequestHandler(json_string):
+def RequestHandler(client_id,client_socket,json_string):
+
+    AddCommunication(client_id,json_string)
 
     try:
         json_data = json.loads(json_string)
@@ -48,8 +51,7 @@ def RequestHandler(json_string):
         elif action == "TradeProfit":
             TradeProfit(json_data)
         elif action == "ClientConnected":
-            print("ClientConnected request received" + json_string)
-            AddCommunication(json_data.get('ClientID'),json_string)
+            ClientConnected(json_data,client_socket)
         else:
             print("Invalid action code.")
     
@@ -58,9 +60,27 @@ def RequestHandler(json_string):
 
 def TradeStatus(json_data):
     print("TradeStatus")
+    print(json_data)
 
 def TradeProfit(json_data):
     print("TradeStatus")
+
+def ClientConnected(json_data,client_socket):
+
+    client_id = json_data.get('ClientID')
+
+    existing_client_id = None
+    for id, socket in ClientSockets.items():
+        if socket == client_socket:
+            existing_client_id = id
+            break
+
+    if existing_client_id:
+        del ClientSockets[existing_client_id]
+        
+    ClientSockets[client_id] = client_socket
+    
+    print(f"Connected clients: {ClientSockets}")
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -72,27 +92,33 @@ def start_server():
     return server_socket
 
 def handle_client_connection(client_socket):
-    
+
     try:
         while True:
+
             request = client_socket.recv(1024)
+
             if not request:
                 print("Connection closed by the client")
                 break
 
-            # Example response to client
-            response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nConnection established\n"
-            client_socket.sendall(response.encode('utf-8'))
-
     except Exception as e:
+
         print(f"Error handling client connection: {e}")
 
     finally:
+
         try:
-            if client_socket in connected_clients:
-                connected_clients.remove(client_socket)
+
+            for key, value in list(ClientSockets.items()):
+                if value == client_socket:
+                    del ClientSockets[key]
+                    break
+
             client_socket.close()
+
         except Exception as e:
+
             print(f"Error closing client socket: {e}")
 
 def listen_for_connections(server_socket):
@@ -100,8 +126,18 @@ def listen_for_connections(server_socket):
 
     while True:
         client_socket, addr = server_socket.accept()
-        connected_clients.append(client_socket)
-        print(f"Accepted connection from {addr}")
+        
+        ClientSockets[str(uuid.uuid4())] = client_socket
+
+        # Send a message to the client to confirm connection and get the client's details
+        trade_details = {
+                        "Code": "Authenticate"
+                        }
+        
+        trade_details_json = json.dumps(trade_details)
+
+        client_socket.send(trade_details_json.encode('utf-8'))
+
         client_handler = threading.Thread(target=handle_client_connection, args=(client_socket,))
         client_handler.start()
 
@@ -113,21 +149,36 @@ def listen_for_messages():
         current_time = datetime.now()
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        for client_socket in list(connected_clients):
+        for client_id, client_socket in list(ClientSockets.items()):
             try:
+
                 message = client_socket.recv(1024)
+
                 if message:
-                    RequestHandler(message.decode('utf-8'))
+                    RequestHandler(client_id,client_socket,message.decode('utf-8'))
                 else:
-                    connected_clients.remove(client_socket)
+
+                    for key, value in list(ClientSockets.items()):
+                        if value == client_socket:
+                            del ClientSockets[key]
+                            break
+
                     client_socket.close()
+                        
                     print("Client disconnected.")
+
             except Exception as e:
+
                 print(f"Error receiving message from client: {e}")
+
                 try:
-                    if client_socket in connected_clients:
-                        connected_clients.remove(client_socket)
+                    for key, value in list(ClientSockets.items()):
+                        if value == client_socket:
+                            del ClientSockets[key]
+                            break
+
                     client_socket.close()
+
                 except Exception as e:
                     print(f"Error closing client socket: {e}")
 
@@ -137,7 +188,7 @@ def check_for_new_trades():
 
     while True:
         current_time = datetime.now()
-        # Format the date and time
+
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
         trades = mt5.positions_get()
@@ -175,21 +226,8 @@ def check_for_new_trades():
                         "External ID": trade.external_id
                     }
                     trade_details_json = json.dumps(trade_details)
-                    for client_socket in connected_clients:
-                        try:
-                            print(client_socket)
-                            client_socket.sendall(trade_details_json.encode('utf-8'))
-                            print("Trade sent to client " +  formatted_time + "\n")
-                            #JDB Log communication
-                            #AddCommunication(AccountNr???,"Trade sent to client " +  formatted_time)
-                        except Exception as e:
-                            print(f"Error sending trade details to client: {e}")
-                            try:
-                                if client_socket in connected_clients:
-                                    connected_clients.remove(client_socket)
-                                client_socket.close()
-                            except Exception as e:
-                                print(f"Error closing client socket: {e}")
+
+                    send_message_to_all_clients(trade_details_json)
 
 def is_position_closed(account,position_ticket):
     positions = account.positions_get()
@@ -208,21 +246,8 @@ def closeTradeOnAllAccounts(ticket):
     formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
     trade_details_json = json.dumps(trade_details)
-    for client_socket in connected_clients:
-        try:
-            client_socket.sendall(trade_details_json.encode('utf-8'))
-            print("Close Trade sent to client" + formatted_time + "\n")
-            #JDB Log communication
-            #AddCommunication(AccountNr???,"Trade sent to client " +  formatted_time)
-        except Exception as e:
-            print(f"Error sending trade details to client: {e}")
-            #AddCommunication(AccountNr???,f"Error sending trade details to client: {e}")
-            try:
-                if client_socket in connected_clients:
-                    connected_clients.remove(client_socket)
-                client_socket.close()
-            except Exception as e:
-                print(f"Error closing client socket: {e}")
+    
+    send_message_to_all_clients(trade_details_json)
 
 def check_for_closed_trades():
     print('Close Trade')
@@ -282,6 +307,22 @@ def InitializeAccounts():
         sent_trades.add(row[0])
 
     db_conn.close()
+
+def send_message_to_all_clients(message):
+
+    for client_id, client_socket in list(ClientSockets.items()):
+        try:
+            client_socket.send(message.encode('utf-8'))
+            AddCommunication(client_id,message.encode('utf-8'))
+        except Exception as e:
+            print(f"Error sending message to client {client_id}: {e}")
+
+            for key, value in list(ClientSockets.items()):
+                if value == client_socket:
+                    del ClientSockets[key]
+                    break
+
+            client_socket.close()
 
 def main():
     InitializeAccounts();
