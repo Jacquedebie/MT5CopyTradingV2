@@ -4,6 +4,7 @@ from telethon.tl.types import PeerChannel
 import asyncio
 import requests
 import aiohttp
+import time
 from datetime import datetime, timezone
 
 # Your api_id and api_hash from my.telegram.org
@@ -31,8 +32,18 @@ def send_telegram_message(chat_id, message):
 
     return response.json()
 
-async def send_http_post_message(session, message):
-    async with session.post(http_server_url, json={"Code": "Place Trade", "message": message}) as response:
+async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number):
+    print(f"Sending HTTP POST message: {trade_type}, {symbol}, {sl}, {tp}, {tp_number}")
+    time.sleep(1)  # Sleep for 1 second to avoid rate limiting
+    data = {
+        "Code": "Place Trade",
+        "Type": trade_type,
+        "Symbol": symbol,
+        "SL": sl,
+        "TP": tp,
+        "TP_Number": tp_number
+    }
+    async with session.post(http_server_url, json=data) as response:
         pass  # Do not wait for the response
 
 async def process_group_messages(group_name, start_date, session):
@@ -72,32 +83,47 @@ async def process_group_messages(group_name, start_date, session):
                     message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
                     print(f"{group_name}: {message_text} at {message_date_str}")
 
-                    async def parse_and_send_messages(action_type):
+                    def parse_message(text):
+                        trade_type = None
+                        if "SELL LIMIT" in text:
+                            trade_type = "Sell Limit"
+                        elif "BUY LIMIT" in text:
+                            trade_type = "Buy Limit"
+                        elif "SELL" in text:
+                            trade_type = "Sell"
+                        elif "BUY" in text:
+                            trade_type = "Buy"
+
+                        symbol = None
+                        if "XAUUSD" in text:
+                            symbol = "XAUUSD"
+                        elif "GOLD" in text:
+                            symbol = "GOLD"
+
+                        sl_line = [line for line in text.split('\n') if 'SL' in line]
+                        sl = sl_line[0].split(':')[1].strip() if sl_line else None
+
+                        tp_lines = [line for line in text.split('\n') if 'TP' in line]
+                        tps = [line.split(':')[1].strip() for line in tp_lines]
+
+                        return trade_type, symbol, sl, tps
+
+                    async def parse_and_send_messages(message_text):
                         try:
-                            sl_line = [line for line in message_text.split('\n') if 'SL' in line][0]
-                            sl = sl_line.split(':')[1].strip()
+                            trade_type, symbol, sl, tps = parse_message(message_text)
 
-                            tp_lines = [line for line in message_text.split('\n') if 'TP' in line]
-                            tps = [line.split(':')[1].strip() for line in tp_lines]
-
-                            for i, tp in enumerate(tps):
-                                if i < 4:  # Ensure we only handle up to 4 TPs
-                                    message = f"{action_type}\nFrom: {group_name}\nDate: {message_date_str}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}"
-                                    send_telegram_message(JDBCopyTrading_chat_id, message)
-                                    asyncio.create_task(send_http_post_message(session, message))
+                            if trade_type and symbol and sl and tps:
+                                for i, tp in enumerate(tps):
+                                    if i < 4:  # Ensure we only handle up to 4 TPs
+                                        message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
+                                        send_telegram_message(JDBCopyTrading_chat_id, message)
+                                        asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
                         except IndexError:
                             print(f"Error parsing message from {group_name}: {message_text}")
                         except Exception as e:
                             print(f"Unexpected error: {e}")
 
-                    if any(keyword in message_text for keyword in ["GOLD SELL", "XAUUSD SELL"]) and "LIMIT" not in message_text:
-                        await parse_and_send_messages("XAUUSD SELL")
-                    elif any(keyword in message_text for keyword in ["GOLD BUY", "XAUUSD BUY"]) and "LIMIT" not in message_text:
-                        await parse_and_send_messages("XAUUSD BUY")
-                    elif any(keyword in message_text for keyword in ["GOLD SELL LIMIT", "XAUUSD SELL LIMIT"]):
-                        await parse_and_send_messages("XAUUSD SELL LIMIT")
-                    elif any(keyword in message_text for keyword in ["GOLD BUY LIMIT", "XAUUSD BUY LIMIT"]):
-                        await parse_and_send_messages("XAUUSD BUY LIMIT")
+                    await parse_and_send_messages(message_text)
 
                     last_message_id = latest_message.id
 

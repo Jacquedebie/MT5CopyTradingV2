@@ -37,6 +37,7 @@ def AddCommunication(accountNumber, message):
     db_conn.close()
 
 def RequestHandler(json_string):
+    print(json_string)
     try:
         json_data = json.loads(json_string)
 
