@@ -63,13 +63,17 @@ def TradeStatus(json_data):
     print(json_data)
 
 def TradeProfit(json_data):
-    print("TradeStatus")
+
+    print(json_data)
 
 def ClientConnected(json_data,client_socket):
+
+    print(json_data)
 
     client_id = json_data.get('ClientID')
 
     existing_client_id = None
+
     for id, socket in ClientSockets.items():
         if socket == client_socket:
             existing_client_id = id
@@ -77,7 +81,12 @@ def ClientConnected(json_data,client_socket):
 
     if existing_client_id:
         del ClientSockets[existing_client_id]
-        
+    
+
+    #Confirm if the client is allowed to connect to the server
+    #If allowed, add the client to the list of connected clients
+
+
     ClientSockets[client_id] = client_socket
     
     print(f"Connected clients: {ClientSockets}")
