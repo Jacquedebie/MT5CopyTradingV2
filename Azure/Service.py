@@ -37,14 +37,9 @@ def AddCommunication(accountNumber, message):
     db_conn.close()
 
 def RequestHandler(json_string):
-    print(json_string)
+
     try:
         json_data = json.loads(json_string)
-
-        case = {
-            "TradeStatus": lambda: TradeStatus(json_data),
-            "TradeProfit": lambda: TradeProfit(json_data)
-        }
 
         action = json_data.get('Code')
 
@@ -55,6 +50,8 @@ def RequestHandler(json_string):
         elif action == "ClientConnected":
             print("ClientConnected request received" + json_string)
             AddCommunication(json_data.get('ClientID'),json_string)
+        else:
+            print("Invalid action code.")
     
     except json.JSONDecodeError:
         return "Invalid JSON string."
@@ -76,8 +73,6 @@ def start_server():
 
 def handle_client_connection(client_socket):
     
-    print("Checking for opened trades")
-
     try:
         while True:
             request = client_socket.recv(1024)
