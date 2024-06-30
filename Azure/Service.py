@@ -167,7 +167,6 @@ def check_for_new_trades(loop):
                         "External ID": trade.external_id
                     }
                     trade_details_json = json.dumps(trade_details)
-                    print(trade_details_json)
                     asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
         
         time.sleep(1)  # Add a sleep to avoid high CPU usage
@@ -179,44 +178,35 @@ def is_position_closed(account, position_ticket):
             return False
     return True
 
-def closeTradeOnAllAccounts(ticket):
-    trade_details = {
-        "Code": "CloseTrade",
-        "Ticket": ticket
-    }
 
-    current_time = datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-
-    trade_details_json = json.dumps(trade_details)
-    print(trade_details_json)
-
-def check_for_closed_trades():
+def check_for_closed_trades(loop):
     print("Checking for closed trades")
 
     while True:
         current_time = datetime.now()
-        # Format the date and time
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     
-        # select all trades from tbl_ActiveTrade
         DB_CONNECTION = dbPath
         db_conn = sqlite3.connect(DB_CONNECTION)
         db_cursor = db_conn.cursor()
         db_cursor.execute("SELECT tbl_ActiveTrade_TicketNr FROM tbl_ActiveTrade")
-        trades_listArray = []
-        for row in db_cursor.fetchall():
-            trades_listArray.append(row[0])
+        trades_listArray = [row[0] for row in db_cursor.fetchall()]
         
-        # check if trade still in mt5 if not delete from tbl_ActiveTrade
         for trade in trades_listArray:
             if is_position_closed(mt5, trade):
-                closeTradeOnAllAccounts(trade)
+                trade_details = {
+                                    "Code": "CloseTrade",
+                                    "Ticket": trade
+                                }
+
+                trade_details_json = json.dumps(trade_details)
+
+                asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
                 db_cursor.execute("DELETE FROM tbl_ActiveTrade WHERE tbl_ActiveTrade_TicketNr = ?", (trade,))
                 db_conn.commit()
 
         db_conn.close()
-        time.sleep(1)  # Add a sleep to avoid high CPU usage
+        time.sleep(1)  
 
 def InitializeAccounts():
     print_to_console_and_file("----------InitializeAccounts---------")
@@ -263,7 +253,7 @@ def main():
     check_open_trade_thread = threading.Thread(target=check_for_new_trades, args=(loop,))
     check_open_trade_thread.start()
 
-    check_close_trade_thread = threading.Thread(target=check_for_closed_trades)
+    check_close_trade_thread = threading.Thread(target=check_for_closed_trades, args=(loop,))
     check_close_trade_thread.start()
 
     loop.run_until_complete(main_async())
