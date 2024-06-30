@@ -4,12 +4,18 @@
 CTrade trade;
 CPositionInfo m_Position; 
 
-input string Address = "127.0.0.1";
-input int Port = 9094;
+string Address = "127.0.0.1";
+int Port = 9094;
 
-input double botVersion = 1.1;
+double botVersion = 1.1;
 bool ExtTLS = false;
 int socket = INVALID_HANDLE;
+
+input string Email_Address = "your.email@example.com"; 
+input string Cell_Number = "1234567890"; 
+input string Name_Surname = "John Doe"; 
+input bool Auto_Lot_Size = 1.0; 
+input double Lot_Size = 1.0; 
 
 void RequestHandler(string json)
 {
@@ -32,6 +38,10 @@ void RequestHandler(string json)
         {
             Notification(json);
         }
+        else if (jsCode == "Authenticate")
+        {
+            Authenticate(json);
+        }
         else
         {
             Print(json);
@@ -41,6 +51,11 @@ void RequestHandler(string json)
     {
         Print("Failed to deserialize JSON");
     }
+}
+
+void Authenticate(string json)
+{
+    Print("Authenticate")
 }
 
 void OpenTrade(string json)
@@ -110,25 +125,37 @@ void CloseTrade(string json)
 
 void CloseTradesByMagicNumber(string magicNumber)
 {
-    // Get the number of open positions
     int totalPositions = PositionsTotal();
     
     for(int i = totalPositions - 1; i >= 0; i--)
     {
         if(m_Position.SelectByIndex(i))
         {
-            // Check if the position's magic number matches the desired magic number
             ulong positionMagicNumber = PositionGetInteger(POSITION_MAGIC);
+
             if(positionMagicNumber == magicNumber)
             {
-                // Get position ticket
                 ulong positionTicket = PositionGetInteger(POSITION_TICKET);
+                string symbol = PositionGetString(POSITION_SYMBOL);
+                double volume = PositionGetDouble(POSITION_VOLUME);
+                double profit = PositionGetDouble(POSITION_PROFIT);
+                ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
+
                 trade.PositionClose(m_Position.Ticket());
                 
+                string TradeDetails = "{\"Code\": \"TradeProfit\", \"ClientID\": \"" + accountID + "\","
+                                      "\"Ticket\": \"" + positionTicket + "\","
+                                      "\"Symbol\": \"" + symbol + "\","
+                                      "\"Volume\": \"" + volume + "\","
+                                      "\"Profit\": \"" + profit + "\","
+                                      "\"MagicNumber\": \"" + positionMagicNumber + "\"}";
+                
+                HTTPSend(socket, TradeDetails);    
             }
         }
     }
 }
+
 
 void Notification(string json)
 {
@@ -224,7 +251,14 @@ void ConnectToServer()
         Print("Connected to ", Address, ":", Port);
 
         long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
-         string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\"}";
+
+        string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
+                          "\"Email\": \"" + Email_Address + "\", " +
+                          "\"CellNumber\": \"" + Cell_Number + "\", " +
+                          "\"NameSurname\": \"" + Name_Surname + "\", " +
+                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
+                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
+
          HTTPSend(socket, ConnectedMessage);
 
 
