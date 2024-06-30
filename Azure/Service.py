@@ -23,6 +23,11 @@ dbPath = ""
 #----------------  Websocket Server  ----------------
 
 async def RequestHandler(json_string, writer):
+    
+    client_id = client_accounts.get(writer, "")
+    
+    AddCommunication(client_id, json_string)
+
     try:
         json_data = json.loads(json_string)
 
@@ -31,7 +36,7 @@ async def RequestHandler(json_string, writer):
         if action == "TradeStatus":
             TradeStatus(json_data)
         elif action == "TradeProfit":
-            TradeProfit(json_data)
+            TradeProfit(client_id,json_data)
         elif action == "Authenticate":
             await ClientConnected(writer, json_data)  # Ensure to await async function
         else:
@@ -43,16 +48,19 @@ async def RequestHandler(json_string, writer):
 def TradeStatus(json_data):
     print(json_data)
 
-def TradeProfit(json_data):
-    print(json_data)
+def TradeProfit(client_id,json_data):
+    InsertTrade(client_id,json_data)
 
 async def ClientConnected(writer, json_data):
     try:
         account_id = json_data.get('account_id')
+
         if account_id:
             client_accounts[writer] = account_id
+            AddCommunication(client_accounts.get(writer, ""),"Conected")
 
-        broadcast_message = json.dumps({"status": "broadcast", "data": json_data})
+        broadcast_message = json.dumps({"Code": "Login", "Status": "Success"})
+
         await broadcast(broadcast_message) 
 
         print(client_accounts.values())
@@ -70,6 +78,7 @@ async def handle_client(reader, writer):
             data = await reader.read(2048)
             if data:
                 json_received = data.decode('utf-8')
+                
                 await RequestHandler(json_received, writer)  # Ensure to await async function
             else:
                 break
@@ -81,7 +90,10 @@ async def handle_client(reader, writer):
         print(f"OSError for client {addr}: {e}")
     finally:
         print(f"Client {addr} disconnected")
+        AddCommunication(client_accounts.get(writer, ""),"Disconect")
+
         clients.remove(writer)
+
         if writer in client_accounts:
             del client_accounts[writer]
             print(client_accounts.values())
@@ -95,9 +107,20 @@ async def handle_client(reader, writer):
             pass 
 
 async def broadcast(message):
+    
     for client in clients:
         client.write(message.encode('utf-8'))
         await client.drain()
+
+    AddCommunication(str(list(client_accounts.values())), message)
+
+async def DirectBroadcast(client,message):
+    
+
+    client.write(message.encode('utf-8'))
+    await client.drain()
+
+    AddCommunication(client, message)
 
 #----------------  MT5 Listener  ----------------
 
@@ -151,6 +174,7 @@ def check_for_new_trades(loop):
                     }
                     trade_details_json = json.dumps(trade_details)
                     asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
+                    
         
         time.sleep(1)  # Add a sleep to avoid high CPU usage
 
@@ -230,14 +254,44 @@ def print_to_console_and_file(message):
     print(message)
 
 def AddCommunication(accountNumber, message):
+
+    date = datetime.now()
+
     DB_CONNECTION = dbPath
     db_conn = sqlite3.connect(DB_CONNECTION)
     db_cursor = db_conn.cursor()
-    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber, tbl_Communication_Message) VALUES (?, ?)", (accountNumber, message))
+    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber,tbl_Communication_Time, tbl_Communication_Message) VALUES (?, ?, ?)", (accountNumber, date,message))
     db_conn.commit()
     db_conn.close()
 
+def InsertTrade(client_id,trade_data):
+   
+    # Extracting the necessary fields from the JSON
+    trade_ticket = trade_data.get('Ticket')
+    trade_magic = trade_data.get('MagicNumber')
+    trade_volume = float(trade_data.get('Volume', 0))
+    trade_profit = float(trade_data.get('Profit', 0))
+    trade_symbol = trade_data.get('Symbol')
 
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    
+    db_cursor.execute("""
+        INSERT INTO tbl_trade (
+            tbl_trade_account,
+            tbl_trade_ticket, 
+            tbl_trade_magic, 
+            tbl_trade_volume, 
+            tbl_trade_profit, 
+            tbl_trade_symbol,
+            tbl_trade_billed
+        ) VALUES (?,?, ?, ?, ?, ?, ?)""", 
+        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0)
+    )
+    
+    db_conn.commit()
+    db_conn.close()
 
 #----------------  Main Loops  ----------------
 
