@@ -56,6 +56,19 @@ void RequestHandler(string json)
 void Authenticate(string json)
 {
     Print("Authenticate")
+
+    long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
+
+    string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
+                          "\"Email\": \"" + Email_Address + "\", " +
+                          "\"CellNumber\": \"" + Cell_Number + "\", " +
+                          "\"NameSurname\": \"" + Name_Surname + "\", " +
+                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
+                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
+
+    HTTPSend(socket, ConnectedMessage);
+
+
 }
 
 void OpenTrade(string json)
@@ -250,16 +263,6 @@ void ConnectToServer()
     {
         Print("Connected to ", Address, ":", Port);
 
-        long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
-
-        string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
-                          "\"Email\": \"" + Email_Address + "\", " +
-                          "\"CellNumber\": \"" + Cell_Number + "\", " +
-                          "\"NameSurname\": \"" + Name_Surname + "\", " +
-                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
-                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
-
-         HTTPSend(socket, ConnectedMessage);
 
 
         string subject, issuer, serial, thumbprint;

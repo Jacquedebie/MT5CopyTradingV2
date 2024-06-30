@@ -65,7 +65,7 @@ def TradeProfit(json_data):
     print(json_data)
 
 def ClientConnected(json_data, client_socket):
-    print(json_data)
+    print("Authentication request received.")
 
     client_id = json_data.get('ClientID')
 
@@ -136,7 +136,7 @@ def listen_for_connections(server_socket):
         
         trade_details_json = json.dumps(trade_details)
 
-        client_socket.send(trade_details_json.encode('utf-8'))
+        send_message_to_all_clients(trade_details_json)
 
         client_handler = threading.Thread(target=handle_client_connection, args=(client_socket,))
         client_handler.start()
