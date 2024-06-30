@@ -38,6 +38,10 @@ void RequestHandler(string json)
         {
             Notification(json);
         }
+        else if (jsCode == "Authenticate")
+        {
+            Authenticate(json);
+        }
         else
         {
             Print(json);
@@ -47,6 +51,11 @@ void RequestHandler(string json)
     {
         Print("Failed to deserialize JSON");
     }
+}
+
+void Authenticate(string json)
+{
+    Print("Authenticate")
 }
 
 void OpenTrade(string json)
@@ -249,7 +258,7 @@ void ConnectToServer()
                           "\"NameSurname\": \"" + Name_Surname + "\", " +
                           "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
                           "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
-                          
+
          HTTPSend(socket, ConnectedMessage);
 
 
