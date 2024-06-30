@@ -1,10 +1,8 @@
 import asyncio
 import datetime
 import json
-import socket
 import threading
 import time
-import uuid
 import MetaTrader5 as mt5
 import os
 import sqlite3
@@ -21,23 +19,8 @@ client_accounts = {}
 
 dbPath = ""
 
-def print_to_console_and_file(message):
-    with open("C:/Temp/output.txt", "a") as outputfile:
-        print(message, file=outputfile)
-    print(message)
 
-class AccountList:
-    def __init__(self, accountList_Number, accountList_Name):
-        self.accountList_Number = accountList_Number
-        self.accountList_Name = accountList_Name
-
-def AddCommunication(accountNumber, message):
-    DB_CONNECTION = dbPath
-    db_conn = sqlite3.connect(DB_CONNECTION)
-    db_cursor = db_conn.cursor()
-    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber, tbl_Communication_Message) VALUES (?, ?)", (accountNumber, message))
-    db_conn.commit()
-    db_conn.close()
+#----------------  Websocket Server  ----------------
 
 async def RequestHandler(json_string, writer):
     try:
@@ -58,11 +41,9 @@ async def RequestHandler(json_string, writer):
         return "Invalid JSON string."
 
 def TradeStatus(json_data):
-    print("TradeStatus")
     print(json_data)
 
 def TradeProfit(json_data):
-    print("TradeProfit")
     print(json_data)
 
 async def ClientConnected(writer, json_data):
@@ -72,9 +53,10 @@ async def ClientConnected(writer, json_data):
             client_accounts[writer] = account_id
 
         broadcast_message = json.dumps({"status": "broadcast", "data": json_data})
-        await broadcast(broadcast_message)  # Ensure to await async function
+        await broadcast(broadcast_message) 
 
-        print_connected_clients()
+        print(client_accounts.values())
+
     except json.JSONDecodeError:
         print("Received data is not valid JSON")
 
@@ -117,11 +99,12 @@ async def broadcast(message):
         client.write(message.encode('utf-8'))
         await client.drain()
 
-def print_connected_clients():
-    if client_accounts:
-        print(client_accounts.values())
-    else:
-        print("No connected clients")
+#----------------  MT5 Listener  ----------------
+
+class AccountList:
+    def __init__(self, accountList_Number, accountList_Name):
+        self.accountList_Number = accountList_Number
+        self.accountList_Name = accountList_Name
 
 def check_for_new_trades(loop):
     print("Checking for opened trades")
@@ -171,14 +154,6 @@ def check_for_new_trades(loop):
         
         time.sleep(1)  # Add a sleep to avoid high CPU usage
 
-def is_position_closed(account, position_ticket):
-    positions = account.positions_get()
-    for position in positions:
-        if position.ticket == position_ticket:
-            return False
-    return True
-
-
 def check_for_closed_trades(loop):
     print("Checking for closed trades")
 
@@ -208,7 +183,15 @@ def check_for_closed_trades(loop):
         db_conn.close()
         time.sleep(1)  
 
+def is_position_closed(account, position_ticket):
+    positions = account.positions_get()
+    for position in positions:
+        if position.ticket == position_ticket:
+            return False
+    return True
+
 def InitializeAccounts():
+
     print_to_console_and_file("----------InitializeAccounts---------")
     
     DB_CONNECTION = dbPath
@@ -238,6 +221,25 @@ def InitializeAccounts():
         sent_trades.add(row[0])
 
     db_conn.close()
+
+#----------------  DB & Files  ----------------
+
+def print_to_console_and_file(message):
+    with open("C:/Temp/output.txt", "a") as outputfile:
+        print(message, file=outputfile)
+    print(message)
+
+def AddCommunication(accountNumber, message):
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber, tbl_Communication_Message) VALUES (?, ?)", (accountNumber, message))
+    db_conn.commit()
+    db_conn.close()
+
+
+
+#----------------  Main Loops  ----------------
 
 async def main_async():
     server = await asyncio.start_server(handle_client, ADDRESS, PORT)

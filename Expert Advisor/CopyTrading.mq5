@@ -110,8 +110,18 @@ void OpenTrade(string json)
          }
          else
          {
+                    
              // Create a JSON object for success response
-             string successResponse = "{ \"Code\": \"TradeStatus\", \"Status\": \"True\" }";
+             CJAVal successObj;
+             successObj["Code"] = "TradeStatus";
+             successObj["Ticket"] = IntegerToString(trade.ResultOrder());
+             successObj["Magic"] = magicNumber;
+             successObj["Symbol"] = symbol;
+             successObj["Type"] = IntegerToString(orderType);
+             successObj["Volume"] = DoubleToString(volume);
+             successObj["Comment"] = comment;
+             
+             string successResponse = successObj.Serialize();
          
              // Send the success JSON back through HTTP
              HTTPSend(socket, successResponse); 
