@@ -55,7 +55,7 @@ void RequestHandler(string json)
 
 void Authenticate(string json)
 {
-    Print("Authenticate")
+    Print("Authenticate");
 
     long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
 
@@ -188,8 +188,17 @@ void Notification(string json)
     }
 }
 
+void SendAccountID()
+{
+    if (socket != INVALID_HANDLE)
+    {
+        int account_id = AccountInfoInteger(ACCOUNT_LOGIN);
+        string message = "{\"Code\":\"Authenticate\",\"account_id\":" + IntegerToString(account_id) + "}";
 
-
+        bool sent = HTTPSend(socket, message);
+        Print("Message sent: ", sent); 
+    }
+}
 
 bool HTTPSend(int socket, string request)
 {
@@ -263,8 +272,6 @@ void ConnectToServer()
     {
         Print("Connected to ", Address, ":", Port);
 
-
-
         string subject, issuer, serial, thumbprint;
         datetime expiration;
 
@@ -273,6 +280,7 @@ void ConnectToServer()
             Print("TLS certificate:\nOwner: ", subject, "\nIssuer: ", issuer, "\nNumber: ", serial, "\nPrint: ", thumbprint, "\nExpiration: ", expiration);
             ExtTLS = true;
         }
+        SendAccountID(); 
     }
     else
     {
