@@ -6,8 +6,7 @@ import requests
 import aiohttp
 import MetaTrader5 as mt5
 import os
-
-
+import re
 from datetime import datetime, timezone
 
 # Your api_id and api_hash from my.telegram.org
@@ -36,29 +35,29 @@ def send_telegram_message(chat_id, message):
 
 async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number):
     print("Send HTTP POST message")
-    # data = {
-    #     "Code": "Place Trade",
-    #     "Type": trade_type,
-    #     "Symbol": symbol,
-    #     "SL": sl,
-    #     "TP": tp,
-    #     "TP_Number": tp_number
-    # }
-    # print(data)
+    data = {
+        "Code": "Place Trade",
+        "Type": trade_type,
+        "Symbol": symbol,
+        "SL": sl,
+        "TP": tp,
+        "TP_Number": tp_number
+    }
+    print(data)
     
-    # try:
-    #     async with session.post(http_server_url, json=data) as response:
-    #         if response.status != 200:
-    #             print(f"HTTP POST failed with status {response.status}")
-    #         else:
-    #             print(f"HTTP POST successful: {response.status}")
-    # except aiohttp.ClientResponseError as e:
-    #     print(f"Client response error: {e}")
-    # except aiohttp.ClientConnectionError as e:
-    #     print(f"Client connection error: {e}")
-    # except Exception as e:
-    #     print(f"Unexpected error: {e}")
-    
+    try:
+        async with session.post(http_server_url, json=data) as response:
+            if response.status != 200:
+                print(f"HTTP POST failed with status {response.status}")
+            else:
+                print(f"HTTP POST successful: {response.status}")
+    except aiohttp.ClientResponseError as e:
+        print(f"Client response error: {e}")
+    except aiohttp.ClientConnectionError as e:
+        print(f"Client connection error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
 def placeOrder(symbol, trade_type, sl, tp):
     print("Place order " + symbol + " " + trade_type + " " + tp + " " + sl)
     symbol_info = mt5.symbol_info(symbol)
@@ -98,10 +97,10 @@ def placeOrder(symbol, trade_type, sl, tp):
 
         # Send order to MT5
         order_result = mt5.order_send(request)
-        if order_result[0] == 10009:
-            print("Order placed successfully")
+        if order_result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("Error placing order:", order_result.comment)
         else:
-            print("Error placing order: ", order_result.comment)
+            print("Order placed successfully")
 
 async def process_group_messages(group_name, start_date, session):
     entity = None
@@ -136,7 +135,7 @@ async def process_group_messages(group_name, start_date, session):
                 message_date = latest_message.date.replace(tzinfo=timezone.utc)
 
                 if latest_message.id != last_message_id and message_date >= start_date:
-                    message_text = latest_message.message
+                    message_text = latest_message.message.upper()  # Convert message to uppercase
                     message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
                     print(f"{group_name}: {message_text} at {message_date_str}")
 
@@ -146,22 +145,23 @@ async def process_group_messages(group_name, start_date, session):
                             trade_type = "Sell Limit"
                         elif "BUY LIMIT" in text:
                             trade_type = "Buy Limit"
-                        elif "SELL" in text:
+                        elif "SELL" in text and "LIMIT" not in text:
                             trade_type = "Sell"
-                        elif "BUY" in text:
+                        elif "BUY" in text and "LIMIT" not in text:
                             trade_type = "Buy"
 
                         symbol = None
                         if "XAUUSD" in text:
-                            symbol = "GOLD"
+                            symbol = "XAUUSD"
                         elif "GOLD" in text:
                             symbol = "GOLD"
 
-                        sl_line = [line for line in text.split('\n') if 'SL' in line]
-                        sl = sl_line[0].split(':')[1].strip() if sl_line else None
+                        sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
+                        sl = sl_line[0].split(':')[-1].strip() if sl_line else None
+                        sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
                         tp_lines = [line for line in text.split('\n') if 'TP' in line]
-                        tps = [line.split(':')[1].strip() for line in tp_lines]
+                        tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
 
                         return trade_type, symbol, sl, tps
 
@@ -171,7 +171,7 @@ async def process_group_messages(group_name, start_date, session):
 
                             if trade_type and symbol and sl and tps:
                                 for i, tp in enumerate(tps):
-                                    if i < 4:  # Ensure we only handle up to 4 TPs
+                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                         message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
                                         send_telegram_message(JDBCopyTrading_chat_id, message)
                                         #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
@@ -205,12 +205,10 @@ def InitializeAccounts():
     else:
         print("MT5 initialized successfully for account ID:", "69896108")
 
-
 async def main():
     InitializeAccounts()
     await client.start(phone)
     print("Client Created")
-
 
     # List of group names to monitor
     group_names = ['Gold Scalper Ninja', 'FABIO VIP SQUAD', 'THE FOREX BOAR 🚀', 'JDB Copy Signals']
