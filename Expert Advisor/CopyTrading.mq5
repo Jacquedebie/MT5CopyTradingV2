@@ -55,7 +55,20 @@ void RequestHandler(string json)
 
 void Authenticate(string json)
 {
-    Print("Authenticate")
+    Print("Authenticate");
+
+    long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
+
+    string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
+                          "\"Email\": \"" + Email_Address + "\", " +
+                          "\"CellNumber\": \"" + Cell_Number + "\", " +
+                          "\"NameSurname\": \"" + Name_Surname + "\", " +
+                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
+                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
+
+    HTTPSend(socket, ConnectedMessage);
+
+
 }
 
 void OpenTrade(string json)
@@ -97,8 +110,18 @@ void OpenTrade(string json)
          }
          else
          {
+                    
              // Create a JSON object for success response
-             string successResponse = "{ \"Code\": \"TradeStatus\", \"Status\": \"True\" }";
+             CJAVal successObj;
+             successObj["Code"] = "TradeStatus";
+             successObj["Ticket"] = IntegerToString(trade.ResultOrder());
+             successObj["Magic"] = magicNumber;
+             successObj["Symbol"] = symbol;
+             successObj["Type"] = IntegerToString(orderType);
+             successObj["Volume"] = DoubleToString(volume);
+             successObj["Comment"] = comment;
+             
+             string successResponse = successObj.Serialize();
          
              // Send the success JSON back through HTTP
              HTTPSend(socket, successResponse); 
@@ -175,8 +198,17 @@ void Notification(string json)
     }
 }
 
+void SendAccountID()
+{
+    if (socket != INVALID_HANDLE)
+    {
+        int account_id = AccountInfoInteger(ACCOUNT_LOGIN);
+        string message = "{\"Code\":\"Authenticate\",\"account_id\":" + IntegerToString(account_id) + "}";
 
-
+        bool sent = HTTPSend(socket, message);
+        Print("Message sent: ", sent); 
+    }
+}
 
 bool HTTPSend(int socket, string request)
 {
@@ -250,18 +282,6 @@ void ConnectToServer()
     {
         Print("Connected to ", Address, ":", Port);
 
-        long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
-
-        string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
-                          "\"Email\": \"" + Email_Address + "\", " +
-                          "\"CellNumber\": \"" + Cell_Number + "\", " +
-                          "\"NameSurname\": \"" + Name_Surname + "\", " +
-                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
-                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
-
-         HTTPSend(socket, ConnectedMessage);
-
-
         string subject, issuer, serial, thumbprint;
         datetime expiration;
 
@@ -270,6 +290,7 @@ void ConnectToServer()
             Print("TLS certificate:\nOwner: ", subject, "\nIssuer: ", issuer, "\nNumber: ", serial, "\nPrint: ", thumbprint, "\nExpiration: ", expiration);
             ExtTLS = true;
         }
+        SendAccountID(); 
     }
     else
     {

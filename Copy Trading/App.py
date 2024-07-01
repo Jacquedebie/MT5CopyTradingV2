@@ -1,37 +1,23 @@
-import MetaTrader5 as mt5
-import json
-import threading
+import sys
+import os
+import asyncio
 
-def check_for_new_trades():
-    
-    if not mt5.initialize():
-        print("Failed to initialize MetaTrader 5")
-        return
-    
-    if not mt5.login(69885852, "8uNtT$A9WSq$wv3", "XMGlobal-MT5 2"):
-        print("Failed to connect to MetaTrader 5")
-        return
-    
-    sent_trades = set()
+sys.path.append(os.path.join(os.path.dirname(__file__), 'classes'))
 
-    while True:
-        trades = mt5.positions_get()
-        
-        if trades:
-            for trade in trades:
-                if trade.ticket not in sent_trades:
-                    sent_trades.add(trade.ticket)
-                    trade_details = {
-                        "Symbol": trade.symbol,
-                        "Type": trade.type,
-                        "Volume": trade.volume,
-                        "Open Price": trade.price_open,
-                        "Ticket": trade.ticket
-                    }
-                    trade_details_json = json.dumps(trade_details)
-                    
-                    # Insert code to Send trade details to Azure server
+from websocket_server import start_server
+from mt5_handler import monitor_mt5
+from database_handler import initialize_database
+
+async def main():
+    
+    queue = asyncio.Queue()
+    
+    await initialize_database()
+
+    await asyncio.gather(
+        start_server(queue),
+        monitor_mt5(queue)
+    )
 
 if __name__ == "__main__":
-    periodic_message_thread = threading.Thread(target=check_for_new_trades)
-    periodic_message_thread.start()
+    asyncio.run(main())

@@ -1,9 +1,8 @@
+import asyncio
 import datetime
 import json
-import socket
 import threading
 import time
-import uuid
 import MetaTrader5 as mt5
 import os
 import sqlite3
@@ -13,31 +12,20 @@ from datetime import datetime
 ADDRESS = "127.0.0.1"
 PORT = 9094
 
-ClientSockets = {}
-
 sent_trades = set()
+
+clients = set()
+client_accounts = {}
 
 dbPath = ""
 
-def print_to_console_and_file(message):
-    with open("C:/Temp/output.txt", "a") as outputfile:
-        print(message, file=outputfile)
-    print(message)
 
-class AccountList:
-    def __init__(self, accountList_Number, accountList_Name):
-        self.accountList_Number = accountList_Number
-        self.accountList_Name = accountList_Name
+#----------------  Websocket Server  ----------------
 
-def AddCommunication(accountNumber, message):
-    DB_CONNECTION = dbPath
-    db_conn = sqlite3.connect(DB_CONNECTION)
-    db_cursor = db_conn.cursor()
-    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber, tbl_Communication_Message) VALUES (?, ?)", (accountNumber, message))
-    db_conn.commit()
-    db_conn.close()
-
-def RequestHandler(client_id, client_socket, json_string):
+async def RequestHandler(json_string, writer):
+    
+    client_id = client_accounts.get(writer, "")
+    
     AddCommunication(client_id, json_string)
 
     try:
@@ -48,9 +36,9 @@ def RequestHandler(client_id, client_socket, json_string):
         if action == "TradeStatus":
             TradeStatus(json_data)
         elif action == "TradeProfit":
-            TradeProfit(json_data)
-        elif action == "ClientConnected":
-            ClientConnected(json_data, client_socket)
+            TradeProfit(client_id,json_data)
+        elif action == "Authenticate":
+            await ClientConnected(writer, json_data)  # Ensure to await async function
         else:
             print("Invalid action code.")
     
@@ -58,111 +46,90 @@ def RequestHandler(client_id, client_socket, json_string):
         return "Invalid JSON string."
 
 def TradeStatus(json_data):
-    print("TradeStatus")
     print(json_data)
 
-def TradeProfit(json_data):
-    print(json_data)
+def TradeProfit(client_id,json_data):
+    InsertTrade(client_id,json_data)
 
-def ClientConnected(json_data, client_socket):
-    print(json_data)
+async def ClientConnected(writer, json_data):
+    try:
+        account_id = json_data.get('account_id')
 
-    client_id = json_data.get('ClientID')
+        if account_id:
+            client_accounts[writer] = account_id
+            AddCommunication(client_accounts.get(writer, ""),"Conected")
 
-    existing_client_id = None
+        broadcast_message = json.dumps({"Code": "Login", "Status": "Success"})
 
-    for id, socket in ClientSockets.items():
-        if socket == client_socket:
-            existing_client_id = id
-            break
+        await broadcast(broadcast_message) 
 
-    if existing_client_id:
-        del ClientSockets[existing_client_id]
+        print(client_accounts.values())
 
-    # Confirm if the client is allowed to connect to the server
-    # If allowed, add the client to the list of connected clients
-    ClientSockets[client_id] = client_socket
-    
-    print(f"Connected clients: {ClientSockets}")
+    except json.JSONDecodeError:
+        print("Received data is not valid JSON")
 
-def start_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((ADDRESS, PORT))
-    server_socket.listen(5)
+async def handle_client(reader, writer):
+    addr = writer.get_extra_info('peername')
 
-    print(f"Server listening on {ADDRESS}:{PORT} \n")
+    clients.add(writer)
 
-    return server_socket
-
-def handle_client_connection(client_socket):
     try:
         while True:
-            request = client_socket.recv(1024)
-            if not request:
-                print("Connection closed by the client")
+            data = await reader.read(2048)
+            if data:
+                json_received = data.decode('utf-8')
+                
+                await RequestHandler(json_received, writer)  # Ensure to await async function
+            else:
                 break
-    except Exception as e:
-        print(f"Error handling client connection: {e}")
-        remove_client_socket(client_socket)
+    except asyncio.CancelledError:
+        pass
+    except ConnectionResetError:
+        print(f"Client {addr} forcibly closed the connection")
+    except OSError as e:
+        print(f"OSError for client {addr}: {e}")
     finally:
-        remove_client_socket(client_socket)
+        print(f"Client {addr} disconnected")
+        AddCommunication(client_accounts.get(writer, ""),"Disconect")
 
-def remove_client_socket(client_socket):
-    try:
-        for key, value in list(ClientSockets.items()):
-            if value == client_socket:
-                del ClientSockets[key]
-                print(ClientSockets)
-                break
-        client_socket.close()
-    except Exception as e:
-        print(f"Error closing client socket: {e}")
+        clients.remove(writer)
 
-def listen_for_connections(server_socket):
-    print("Checking for incoming connections")
+        if writer in client_accounts:
+            del client_accounts[writer]
+            print(client_accounts.values())
+        writer.close()
 
-    while True:
-        client_socket, addr = server_socket.accept()
-        
-        ClientSockets[str(uuid.uuid4())] = client_socket
+        try:
+            await writer.wait_closed()
+        except ConnectionResetError:
+            pass  
+        except OSError:
+            pass 
 
-        print("trying to connext to client")
-        print(ClientSockets)
-
-        # Send a message to the client to confirm connection and get the client's details
-        trade_details = {
-            "Code": "Authenticate"
-        }
-        
-        trade_details_json = json.dumps(trade_details)
-
-        client_socket.send(trade_details_json.encode('utf-8'))
-
-        client_handler = threading.Thread(target=handle_client_connection, args=(client_socket,))
-        client_handler.start()
-
-def listen_for_messages():
-    print("Checking for incoming messages from clients")
+async def broadcast(message):
     
-    while True:
-        current_time = datetime.now()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    for client in clients:
+        client.write(message.encode('utf-8'))
+        await client.drain()
 
-        for client_id, client_socket in list(ClientSockets.items()):
-            try:
-                message = client_socket.recv(1024)
-                print(message)
+    AddCommunication(str(list(client_accounts.values())), message)
 
-                if message:
-                    RequestHandler(client_id, client_socket, message.decode('utf-8'))
-                else:
-                    print("Client disconnected.")
-                    remove_client_socket(client_socket)
-            except Exception as e:
-                print(f"Error receiving message from client: {e}")
-                remove_client_socket(client_socket)
+async def DirectBroadcast(client,message):
+    
 
-def check_for_new_trades():
+    client.write(message.encode('utf-8'))
+    await client.drain()
+
+    AddCommunication(client, message)
+
+#----------------  MT5 Listener  ----------------
+
+class AccountList:
+    def __init__(self, accountList_Number, accountList_Name):
+        self.accountList_Number = accountList_Number
+        self.accountList_Name = accountList_Name
+
+def check_for_new_trades(loop):
     print("Checking for opened trades")
 
     while True:
@@ -171,11 +138,13 @@ def check_for_new_trades():
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
         trades = mt5.positions_get()
-        if trades:
+        if trades is None:
+            print("No trades found or error in fetching trades.")
+        elif trades:
             for trade in trades:
                 if trade.ticket not in sent_trades:
                     sent_trades.add(trade.ticket)
-                    
+
                     DB_CONNECTION = dbPath
                     db_conn = sqlite3.connect(DB_CONNECTION)
                     db_cursor = db_conn.cursor()
@@ -204,8 +173,39 @@ def check_for_new_trades():
                         "External ID": trade.external_id
                     }
                     trade_details_json = json.dumps(trade_details)
+                    asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
+                    
+        
+        time.sleep(1)  # Add a sleep to avoid high CPU usage
 
-                    send_message_to_all_clients(trade_details_json)
+def check_for_closed_trades(loop):
+    print("Checking for closed trades")
+
+    while True:
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    
+        DB_CONNECTION = dbPath
+        db_conn = sqlite3.connect(DB_CONNECTION)
+        db_cursor = db_conn.cursor()
+        db_cursor.execute("SELECT tbl_ActiveTrade_TicketNr FROM tbl_ActiveTrade")
+        trades_listArray = [row[0] for row in db_cursor.fetchall()]
+        
+        for trade in trades_listArray:
+            if is_position_closed(mt5, trade):
+                trade_details = {
+                                    "Code": "CloseTrade",
+                                    "Ticket": trade
+                                }
+
+                trade_details_json = json.dumps(trade_details)
+
+                asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
+                db_cursor.execute("DELETE FROM tbl_ActiveTrade WHERE tbl_ActiveTrade_TicketNr = ?", (trade,))
+                db_conn.commit()
+
+        db_conn.close()
+        time.sleep(1)  
 
 def is_position_closed(account, position_ticket):
     positions = account.positions_get()
@@ -214,45 +214,8 @@ def is_position_closed(account, position_ticket):
             return False
     return True
 
-def closeTradeOnAllAccounts(ticket):
-    trade_details = {
-        "Code": "CloseTrade",
-        "Ticket": ticket
-    }
-
-    current_time = datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-
-    trade_details_json = json.dumps(trade_details)
-    
-    send_message_to_all_clients(trade_details_json)
-
-def check_for_closed_trades():
-    print('Close Trade')
-    while True:
-        current_time = datetime.now()
-        # Format the date and time
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    
-        # select all trades from tbl_ActiveTrade
-        DB_CONNECTION = dbPath
-        db_conn = sqlite3.connect(DB_CONNECTION)
-        db_cursor = db_conn.cursor()
-        db_cursor.execute("SELECT tbl_ActiveTrade_TicketNr FROM tbl_ActiveTrade")
-        trades_listArray = []
-        for row in db_cursor.fetchall():
-            trades_listArray.append(row[0])
-        
-        # check if trade still in mt5 if not delete from tbl_ActiveTrade
-        for trade in trades_listArray:
-            if is_position_closed(mt5, trade):
-                closeTradeOnAllAccounts(trade)
-                db_cursor.execute("DELETE FROM tbl_ActiveTrade WHERE tbl_ActiveTrade_TicketNr = ?", (trade,))
-                db_conn.commit()
-
-        db_conn.close()
-
 def InitializeAccounts():
+
     print_to_console_and_file("----------InitializeAccounts---------")
     
     DB_CONNECTION = dbPath
@@ -283,31 +246,73 @@ def InitializeAccounts():
 
     db_conn.close()
 
-def send_message_to_all_clients(message):
-    for client_id, client_socket in list(ClientSockets.items()):
-        try:
-            client_socket.send(message.encode('utf-8'))
-            AddCommunication(client_id, message.encode('utf-8'))
-        except Exception as e:
-            print(f"Error sending message to client {client_id}: {e}")
-            remove_client_socket(client_socket)
+#----------------  DB & Files  ----------------
+
+def print_to_console_and_file(message):
+    with open("C:/Temp/output.txt", "a") as outputfile:
+        print(message, file=outputfile)
+    print(message)
+
+def AddCommunication(accountNumber, message):
+
+    date = datetime.now()
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber,tbl_Communication_Time, tbl_Communication_Message) VALUES (?, ?, ?)", (accountNumber, date,message))
+    db_conn.commit()
+    db_conn.close()
+
+def InsertTrade(client_id,trade_data):
+   
+    # Extracting the necessary fields from the JSON
+    trade_ticket = trade_data.get('Ticket')
+    trade_magic = trade_data.get('MagicNumber')
+    trade_volume = float(trade_data.get('Volume', 0))
+    trade_profit = float(trade_data.get('Profit', 0))
+    trade_symbol = trade_data.get('Symbol')
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    
+    db_cursor.execute("""
+        INSERT INTO tbl_trade (
+            tbl_trade_account,
+            tbl_trade_ticket, 
+            tbl_trade_magic, 
+            tbl_trade_volume, 
+            tbl_trade_profit, 
+            tbl_trade_symbol,
+            tbl_trade_billed
+        ) VALUES (?,?, ?, ?, ?, ?, ?)""", 
+        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0)
+    )
+    
+    db_conn.commit()
+    db_conn.close()
+
+#----------------  Main Loops  ----------------
+
+async def main_async():
+    server = await asyncio.start_server(handle_client, ADDRESS, PORT)
+    print(f"Server listening on {ADDRESS}:{PORT}")
+    async with server:
+        await server.serve_forever()
 
 def main():
     InitializeAccounts()
 
-    server_socket = start_server()
+    loop = asyncio.get_event_loop()
 
-    listener_thread = threading.Thread(target=listen_for_connections, args=(server_socket,))
-    listener_thread.start()
-
-    message_listener_thread = threading.Thread(target=listen_for_messages)
-    message_listener_thread.start()
-
-    check_open_trade_thread = threading.Thread(target=check_for_new_trades)
+    check_open_trade_thread = threading.Thread(target=check_for_new_trades, args=(loop,))
     check_open_trade_thread.start()
 
-    check_close_trade_thread = threading.Thread(target=check_for_closed_trades)
+    check_close_trade_thread = threading.Thread(target=check_for_closed_trades, args=(loop,))
     check_close_trade_thread.start()
+
+    loop.run_until_complete(main_async())
 
     print("\n =====ALL SERVICES STARTED====== \n")
 
