@@ -7,12 +7,15 @@ import aiohttp
 import MetaTrader5 as mt5
 import os
 import re
+import sqlite3
+
 from datetime import datetime, timezone
 
 # Your api_id and api_hash from my.telegram.org
 api_id = '21789309'
 api_hash = '25cfde9a425a3658172d011e45e81a2c'
 phone = '+2784583071'  # e.g. +123456789
+magic_number = 2784583072
 
 bot_token = '6695292881:AAHoEsUyrgkHAYqsbXcn9XWN9Y7nNTi5Jy4'
 JDBCopyTrading_chat_id = '-1001920185934'
@@ -91,6 +94,7 @@ def placeOrder(symbol, trade_type, sl, tp):
             "price": price,
             "tp": float(tp),
             "sl": float(sl),
+            "magic": magic_number,
             "type_filling": mt5.ORDER_FILLING_IOC
         }
         #the request gets and error Unsupported filling mode
@@ -192,18 +196,34 @@ async def process_group_messages(group_name, start_date, session):
         await asyncio.sleep(10)
 
 def InitializeAccounts():
+
     print("----------InitializeAccounts---------")
     
     PATH = os.path.abspath(__file__)
     DIRECTORY = os.path.dirname(os.path.dirname(PATH))
+    dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
+    
+    DB_CONNECTION = dbPath
 
-    instance_path = os.path.join(DIRECTORY, "Instances", "1", "terminal64.exe")
+    db_conn = sqlite3.connect(DB_CONNECTION)
 
-    if not mt5.initialize(login=69896108, password="*EgU9P2R#p*dNyV", server="XMGlobal-MT5 2", path=instance_path):
-        print("Failed to initialize MT5 terminal from", instance_path)
-        print("Error:", mt5.last_error())
-    else:
-        print("MT5 initialized successfully for account ID:", "69896108")
+    db_cursor = db_conn.cursor()
+
+    # get main account
+    db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 0")
+    counter = 0
+    for row in db_cursor.fetchall():
+        counter = counter + 1
+        # MAIN
+        instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
+
+        if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
+            print("Failed to initialize MT5 terminal from", instance_path)
+            print("Error:", mt5.last_error())
+        else:
+            print("MT5 initialized successfully for account ID:", row[0])
+
+    db_conn.close()
 
 async def main():
     InitializeAccounts()

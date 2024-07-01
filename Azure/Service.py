@@ -7,6 +7,10 @@ import MetaTrader5 as mt5
 import os
 import sqlite3
 
+import Meta1 as  mt5_Client_1
+
+import subprocess
+
 from datetime import datetime
 
 ADDRESS = "127.0.0.1"
@@ -137,11 +141,13 @@ def check_for_new_trades(loop):
 
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        trades = mt5.positions_get()
-        if trades is None:
+        tradesa = mt5.positions_get()
+        tradesb = mt5_Client_1.positions_get()
+
+        if tradesa is None:
             print("No trades found or error in fetching trades.")
-        elif trades:
-            for trade in trades:
+        elif tradesa:
+            for trade in tradesa:
                 if trade.ticket not in sent_trades:
                     sent_trades.add(trade.ticket)
 
@@ -175,6 +181,42 @@ def check_for_new_trades(loop):
                     trade_details_json = json.dumps(trade_details)
                     asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
                     
+        if tradesb is None:
+            print("No trades found or error in fetching trades.")
+        elif tradesb:
+            for trade in tradesb:
+                if trade.ticket not in sent_trades:
+                    sent_trades.add(trade.ticket)
+
+                    DB_CONNECTION = dbPath
+                    db_conn = sqlite3.connect(DB_CONNECTION)
+                    db_cursor = db_conn.cursor()
+                    db_cursor.execute("INSERT INTO tbl_ActiveTrade (tbl_ActiveTrade_TicketNr) VALUES (?)", (trade.ticket,))
+                    db_conn.commit()
+                    db_conn.close()
+
+                    trade_details = {
+                        "Code": "OpenTrade",
+                        "Symbol": trade.symbol,
+                        "Ticket": trade.ticket,
+                        "Time": trade.time,
+                        "Time Update": trade.time_update,
+                        "Type": trade.type,
+                        "Magic": trade.magic,
+                        "Identifier": trade.identifier,
+                        "Reason": trade.reason,
+                        "Volume": trade.volume,
+                        "Open Price": trade.price_open,
+                        "SL": trade.sl,
+                        "TP": trade.tp,
+                        "Current Price": trade.price_current,
+                        "Swap": trade.swap,
+                        "Profit": trade.profit,
+                        "Comment": trade.comment,
+                        "External ID": trade.external_id
+                    }
+                    trade_details_json = json.dumps(trade_details)
+                    asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
         
         time.sleep(1)  # Add a sleep to avoid high CPU usage
 
@@ -230,7 +272,7 @@ def InitializeAccounts():
     for row in db_cursor.fetchall():
         counter = counter + 1
         # MAIN
-        instance_path = os.path.join(DIRECTORY, "Instances", str(counter), "terminal64.exe")
+        instance_path = os.path.join(DIRECTORY, "Instances", str(1), "terminal64.exe")
 
         if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
             print("Failed to initialize MT5 terminal from", instance_path)
@@ -239,6 +281,22 @@ def InitializeAccounts():
             print("MT5 initialized successfully for account ID:", row[0])
             accountList = AccountList(mt5, "MainAccount")
             account_List.append(accountList)
+
+    db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 0")
+    counter = 0
+    for row in db_cursor.fetchall():
+        counter = counter + 1
+        # MAIN
+        instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
+
+        if not mt5_Client_1.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
+            print("Failed to initialize MT5 terminal from", instance_path)
+            print("Error:", mt5.last_error())
+        else:
+            print("MT5 initialized successfully for account ID:", row[0])
+            accountList = AccountList(mt5_Client_1, "Account2")
+            account_List.append(accountList)
+
 
     db_cursor.execute("SELECT tbl_ActiveTrade_TicketNr FROM tbl_ActiveTrade")
     for row in db_cursor.fetchall():
@@ -304,6 +362,14 @@ async def main_async():
 def main():
     InitializeAccounts()
 
+    # script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
+    
+    # # Run the script
+    # result = subprocess.run(['python', script_path], capture_output=True, text=True)
+
+    # # Print the output of the script
+    # print("resutls : " + result.stdout)
+
     loop = asyncio.get_event_loop()
 
     check_open_trade_thread = threading.Thread(target=check_for_new_trades, args=(loop,))
@@ -323,4 +389,29 @@ if __name__ == "__main__":
     DIRECTORY = os.path.dirname(os.path.dirname(PATH))
     dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+    # def run_script(script_path):
+    #     subprocess.run(['python', script_path])
+
+    # # Path to the other script
+    # script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
+
+    # # Create a thread to run the script
+    # script_thread = threading.Thread(target=run_script, args=(script_path,))
+
+    # # Start the thread
+    # script_thread.start()
+
+    # # Continue with the main program
+    # print('The script is running in a separate thread.')
+
+    # # Optional: Wait for the thread to finish if needed
+    # script_thread.join()
+
+    # Path to the script
+    script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
+
+    # Command to open a new command prompt and run the script
+    subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
+
     main()
+
