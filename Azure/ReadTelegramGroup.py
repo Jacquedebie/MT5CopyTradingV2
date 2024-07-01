@@ -4,7 +4,10 @@ from telethon.tl.types import PeerChannel
 import asyncio
 import requests
 import aiohttp
-import time
+import MetaTrader5 as mt5
+import os
+
+
 from datetime import datetime, timezone
 
 # Your api_id and api_hash from my.telegram.org
@@ -29,22 +32,76 @@ def send_telegram_message(chat_id, message):
         "text": message,
     }
     response = requests.post(url, data=data)
-
     return response.json()
 
 async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number):
-    print(f"Sending HTTP POST message: {trade_type}, {symbol}, {sl}, {tp}, {tp_number}")
-    time.sleep(1)  # Sleep for 1 second to avoid rate limiting
-    data = {
-        "Code": "Place Trade",
-        "Type": trade_type,
-        "Symbol": symbol,
-        "SL": sl,
-        "TP": tp,
-        "TP_Number": tp_number
-    }
-    async with session.post(http_server_url, json=data) as response:
-        pass  # Do not wait for the response
+    print("Send HTTP POST message")
+    # data = {
+    #     "Code": "Place Trade",
+    #     "Type": trade_type,
+    #     "Symbol": symbol,
+    #     "SL": sl,
+    #     "TP": tp,
+    #     "TP_Number": tp_number
+    # }
+    # print(data)
+    
+    # try:
+    #     async with session.post(http_server_url, json=data) as response:
+    #         if response.status != 200:
+    #             print(f"HTTP POST failed with status {response.status}")
+    #         else:
+    #             print(f"HTTP POST successful: {response.status}")
+    # except aiohttp.ClientResponseError as e:
+    #     print(f"Client response error: {e}")
+    # except aiohttp.ClientConnectionError as e:
+    #     print(f"Client connection error: {e}")
+    # except Exception as e:
+    #     print(f"Unexpected error: {e}")
+    
+def placeOrder(symbol, trade_type, sl, tp):
+    print("Place order " + symbol + " " + trade_type + " " + tp + " " + sl)
+    symbol_info = mt5.symbol_info(symbol)
+    if symbol_info is None:
+        print(f"Symbol {symbol} not found")
+    else:
+        print(f"Symbol {symbol} found")
+        price = 0
+
+        if trade_type == "Buy Limit":
+            order_type = mt5.ORDER_TYPE_BUY_LIMIT
+            #price = passed Value
+        elif trade_type == "Sell Limit":
+            order_type = mt5.ORDER_TYPE_SELL_LIMIT
+            #price = passed Value
+        elif trade_type == "Buy":
+            order_type = mt5.ORDER_TYPE_BUY
+            price = symbol_info.ask
+        elif trade_type == "Sell":
+            order_type = mt5.ORDER_TYPE_SELL
+            price = symbol_info.bid
+        else:
+            print(f"Unsupported trade type: {trade_type}")
+            return
+        
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": symbol_info.volume_min,
+            "type": order_type,
+            "price": price,
+            "tp": float(tp),
+            "sl": float(sl),
+            "type_filling": mt5.ORDER_FILLING_IOC
+        }
+        #the request gets and error Unsupported filling mode
+
+        # Send order to MT5
+        order_result = mt5.order_send(request)
+        if order_result[0] == 10009:
+            print("Order placed successfully")
+        else:
+            print("Error placing order: ", order_result.comment)
 
 async def process_group_messages(group_name, start_date, session):
     entity = None
@@ -96,7 +153,7 @@ async def process_group_messages(group_name, start_date, session):
 
                         symbol = None
                         if "XAUUSD" in text:
-                            symbol = "XAUUSD"
+                            symbol = "GOLD"
                         elif "GOLD" in text:
                             symbol = "GOLD"
 
@@ -117,7 +174,8 @@ async def process_group_messages(group_name, start_date, session):
                                     if i < 4:  # Ensure we only handle up to 4 TPs
                                         message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
                                         send_telegram_message(JDBCopyTrading_chat_id, message)
-                                        asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                        placeOrder(symbol, trade_type, sl, tp)
                         except IndexError:
                             print(f"Error parsing message from {group_name}: {message_text}")
                         except Exception as e:
@@ -133,9 +191,26 @@ async def process_group_messages(group_name, start_date, session):
         # Wait for 10 seconds before checking again
         await asyncio.sleep(10)
 
+def InitializeAccounts():
+    print("----------InitializeAccounts---------")
+    
+    PATH = os.path.abspath(__file__)
+    DIRECTORY = os.path.dirname(os.path.dirname(PATH))
+
+    instance_path = os.path.join(DIRECTORY, "Instances", "1", "terminal64.exe")
+
+    if not mt5.initialize(login=69896108, password="*EgU9P2R#p*dNyV", server="XMGlobal-MT5 2", path=instance_path):
+        print("Failed to initialize MT5 terminal from", instance_path)
+        print("Error:", mt5.last_error())
+    else:
+        print("MT5 initialized successfully for account ID:", "69896108")
+
+
 async def main():
+    InitializeAccounts()
     await client.start(phone)
     print("Client Created")
+
 
     # List of group names to monitor
     group_names = ['Gold Scalper Ninja', 'FABIO VIP SQUAD', 'THE FOREX BOAR 🚀', 'JDB Copy Signals']
