@@ -13,7 +13,7 @@ import subprocess
 
 from datetime import datetime
 
-ADDRESS = "127.0.0.1"
+ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()
@@ -43,6 +43,9 @@ async def RequestHandler(json_string, writer):
             TradeProfit(client_id,json_data)
         elif action == "Authenticate":
             await ClientConnected(writer, json_data)  # Ensure to await async function
+        elif action == "Ping":
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{current_time}] ping received")
         else:
             print("Invalid action code.")
     
@@ -67,7 +70,11 @@ async def ClientConnected(writer, json_data):
 
         await broadcast(broadcast_message) 
 
-        print(client_accounts.values())
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{current_time}] Client Connected :")
+
+        print( client_accounts.values())
+
 
     except json.JSONDecodeError:
         print("Received data is not valid JSON")
@@ -91,7 +98,8 @@ async def handle_client(reader, writer):
     except ConnectionResetError:
         print(f"Client {addr} forcibly closed the connection")
     except OSError as e:
-        print(f"OSError for client {addr}: {e}")
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{current_time}] OSError for client {addr}: {e}")
     finally:
         print(f"Client {addr} disconnected")
         AddCommunication(client_accounts.get(writer, ""),"Disconect")
@@ -144,9 +152,7 @@ def check_for_new_trades(loop):
         tradesa = mt5.positions_get()
         tradesb = mt5_Client_1.positions_get()
 
-        if tradesa is None:
-            print("No trades found or error in fetching trades.")
-        elif tradesa:
+        if tradesa:
             for trade in tradesa:
                 if trade.ticket not in sent_trades:
                     sent_trades.add(trade.ticket)
