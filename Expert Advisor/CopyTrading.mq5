@@ -4,7 +4,7 @@
 CTrade trade;
 CPositionInfo m_Position; 
 
-string Address = "127.0.0.1";
+string Address = "172.174.154.125";
 int Port = 9094;
 
 double botVersion = 1.1;
@@ -17,9 +17,10 @@ input string Name_Surname = "John Doe";
 input bool Auto_Lot_Size = 1.0; 
 input double Lot_Size = 1.0; 
 
+datetime lastPingTime = 0; // Store the last ping time
+
 void RequestHandler(string json)
 {
-
     CJAVal jsonObj;
 
     if (jsonObj.Deserialize(json))
@@ -67,8 +68,6 @@ void Authenticate(string json)
                           "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
 
     HTTPSend(socket, ConnectedMessage);
-
-
 }
 
 void OpenTrade(string json)
@@ -110,7 +109,6 @@ void OpenTrade(string json)
          }
          else
          {
-                    
              // Create a JSON object for success response
              CJAVal successObj;
              successObj["Code"] = "TradeStatus";
@@ -126,8 +124,6 @@ void OpenTrade(string json)
              // Send the success JSON back through HTTP
              HTTPSend(socket, successResponse); 
          }
-
-        
     }
     else
     {
@@ -178,7 +174,6 @@ void CloseTradesByMagicNumber(string magicNumber)
         }
     }
 }
-
 
 void Notification(string json)
 {
@@ -272,6 +267,15 @@ bool HTTPRecv(int socket, uint timeout)
     return StringLen(buffer) > 0;
 }
 
+void Ping()
+{
+    datetime current_time = TimeCurrent();
+    string time_str = TimeToString(current_time, TIME_DATE | TIME_MINUTES | TIME_SECONDS);
+    Print("Ping server at ", time_str);
+    
+    string pingMessage = "{\"Code\":\"Ping\"}";
+    HTTPSend(socket, pingMessage);
+}
 
 void ConnectToServer()
 {
@@ -300,11 +304,10 @@ void ConnectToServer()
     }
 }
 
-
-
 void OnInit()
 {
     ConnectToServer();
+    lastPingTime = TimeCurrent(); // Initialize the last ping time
 }
 
 void OnTick()
@@ -321,6 +324,12 @@ void OnTick()
         {
  
         }
+    }
+
+    if (TimeCurrent() - lastPingTime >= 60)
+    {
+        Ping();
+        lastPingTime = TimeCurrent();
     }
 }
 
