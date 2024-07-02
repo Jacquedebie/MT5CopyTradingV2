@@ -8,14 +8,12 @@ import MetaTrader5 as mt5
 import os
 import re
 import sqlite3
-
 from datetime import datetime, timezone
 
 # Your api_id and api_hash from my.telegram.org
 api_id = '21789309'
 api_hash = '25cfde9a425a3658172d011e45e81a2c'
 phone = '+2784583071'  # e.g. +123456789
-magic_number = 2784583072
 
 bot_token = '6695292881:AAHoEsUyrgkHAYqsbXcn9XWN9Y7nNTi5Jy4'
 JDBCopyTrading_chat_id = '-1001920185934'
@@ -26,6 +24,14 @@ http_server_url = 'http://127.0.0.1:9094/'  # Change this to your HTTP server UR
 
 # Create the client and connect
 client = TelegramClient('session_name', api_id, api_hash)
+
+# Magic numbers for each group
+group_magic_numbers = {
+    'Gold Scalper Ninja': 2784583072,
+    'FABIO VIP SQUAD': 2784583073,
+    'THE FOREX BOAR 🚀': 2784583074,
+    'JDB Copy Signals': 2784583075
+}
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -61,8 +67,8 @@ async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number)
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-def placeOrder(symbol, trade_type, sl, tp):
-    print("Place order " + symbol + " " + trade_type + " " + tp + " " + sl)
+def placeOrder(symbol, trade_type, sl, tp, magic_number):
+    print(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Magic: {magic_number}")
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print(f"Symbol {symbol} not found")
@@ -72,10 +78,8 @@ def placeOrder(symbol, trade_type, sl, tp):
 
         if trade_type == "Buy Limit":
             order_type = mt5.ORDER_TYPE_BUY_LIMIT
-            #price = passed Value
         elif trade_type == "Sell Limit":
             order_type = mt5.ORDER_TYPE_SELL_LIMIT
-            #price = passed Value
         elif trade_type == "Buy":
             order_type = mt5.ORDER_TYPE_BUY
             price = symbol_info.ask
@@ -97,9 +101,7 @@ def placeOrder(symbol, trade_type, sl, tp):
             "magic": magic_number,
             "type_filling": mt5.ORDER_FILLING_IOC
         }
-        #the request gets and error Unsupported filling mode
 
-        # Send order to MT5
         order_result = mt5.order_send(request)
         if order_result.retcode != mt5.TRADE_RETCODE_DONE:
             print("Error placing order:", order_result.comment)
@@ -119,6 +121,7 @@ async def process_group_messages(group_name, start_date, session):
 
     channel = entity
     last_message_id = 0
+    magic_number = group_magic_numbers.get(group_name, 2784583072)
 
     while True:
         try:
@@ -156,7 +159,7 @@ async def process_group_messages(group_name, start_date, session):
 
                         symbol = None
                         if "XAUUSD" in text:
-                            symbol = "XAUUSD"
+                            symbol = "GOLD"
                         elif "GOLD" in text:
                             symbol = "GOLD"
 
@@ -179,7 +182,7 @@ async def process_group_messages(group_name, start_date, session):
                                         message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
                                         send_telegram_message(JDBCopyTrading_chat_id, message)
                                         #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                        placeOrder(symbol, trade_type, sl, tp)
+                                        placeOrder(symbol, trade_type, sl, tp, magic_number)
                         except IndexError:
                             print(f"Error parsing message from {group_name}: {message_text}")
                         except Exception as e:
@@ -196,7 +199,6 @@ async def process_group_messages(group_name, start_date, session):
         await asyncio.sleep(10)
 
 def InitializeAccounts():
-
     print("----------InitializeAccounts---------")
     
     PATH = os.path.abspath(__file__)
