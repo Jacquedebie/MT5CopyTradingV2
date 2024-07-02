@@ -23,6 +23,7 @@ client_accounts = {}
 
 dbPath = ""
 
+trailing_stop_distance = 1
 
 #----------------  Websocket Server  ----------------
 
@@ -226,6 +227,59 @@ def check_for_new_trades(loop):
         
         time.sleep(1)  # Add a sleep to avoid high CPU usage
 
+def check_for_modify_trades(loop):
+    print("Checking for Modify trades")
+
+    while True:
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    
+        trades = mt5_Client_1.positions_get()
+        for tradeMt5 in trades:
+            symbol_info = mt5_Client_1.symbol_info(tradeMt5.symbol)
+            price = symbol_info.ask
+            #print(f"Profit from Trade {tradeMt5.ticket}: {tradeMt5.profit}")
+            if tradeMt5.profit > 0:
+                #print(f"Trade {tradeMt5.ticket} is in profit. Modifying stop loss")
+                current_stop_loss = tradeMt5.sl
+                new_stop_loss = price - trailing_stop_distance if tradeMt5.type == mt5_Client_1.ORDER_TYPE_BUY else price + trailing_stop_distance
+                #print(f"Current stop loss: {current_stop_loss}, New stop loss: {new_stop_loss}")
+                if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
+                    modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss)
+                    # result = mt5.order_modify(
+                    #     tradeMt5.ticket,
+                    #     price,
+                    #     new_stop_loss,
+                    #     tradeMt5.tp,
+                    #     tradeMt5.deviation,
+                    #     tradeMt5.magic,
+                    #     tradeMt5.comment,
+                    #     tradeMt5.type_time,
+                    #     tradeMt5.expiration
+                    # )
+                    # if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    #     print(f"Failed to modify trade {tradeMt5.ticket}. Error code: {result.retcode}")
+
+
+        time.sleep(1)  
+
+def modify_position(account,order_number, symbol, new_stop_loss):
+    # Create the request
+    request = {
+        "action": mt5_Client_1.TRADE_ACTION_SLTP,
+        "symbol": symbol,
+        "sl": new_stop_loss,
+        "position": order_number
+    }
+    # Send order to MT5
+    order_result = account.order_send(request)
+    if order_result[0] == 10009:
+        return True
+    else:
+        print_to_console_and_file("modify_position account " + str(accountName) + " Last MT5 Error : " + order_result.comment)
+        return False
+
+
 def check_for_closed_trades(loop):
     print("Checking for closed trades")
 
@@ -383,6 +437,9 @@ def main():
 
     check_close_trade_thread = threading.Thread(target=check_for_closed_trades, args=(loop,))
     check_close_trade_thread.start()
+
+    check_modify_trade_thread = threading.Thread(target=check_for_modify_trades, args=(loop,))
+    check_modify_trade_thread.start()
 
     loop.run_until_complete(main_async())
 
