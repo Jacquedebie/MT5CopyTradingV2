@@ -294,7 +294,7 @@ def check_for_closed_trades(loop):
         trades_listArray = [row[0] for row in db_cursor.fetchall()]
         
         for trade in trades_listArray:
-            if is_position_closed(mt5, trade):
+            if is_position_closed(trade):
                 trade_details = {
                                     "Code": "CloseTrade",
                                     "Ticket": trade
@@ -309,11 +309,17 @@ def check_for_closed_trades(loop):
         db_conn.close()
         time.sleep(1)  
 
-def is_position_closed(account, position_ticket):
-    positions = account.positions_get()
+def is_position_closed(position_ticket):
+    positions = mt5.positions_get()
     for position in positions:
         if position.ticket == position_ticket:
             return False
+
+    positions = mt5_Client_1.positions_get()
+    for position in positions:
+        if position.ticket == position_ticket:
+            return False
+
     return True
 
 def InitializeAccounts():
