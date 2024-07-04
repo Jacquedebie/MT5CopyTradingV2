@@ -244,22 +244,9 @@ def check_for_modify_trades(loop):
                 current_stop_loss = tradeMt5.sl
                 new_stop_loss = price - trailing_stop_distance if tradeMt5.type == mt5_Client_1.ORDER_TYPE_BUY else price + trailing_stop_distance
                 #print(f"Current stop loss: {current_stop_loss}, New stop loss: {new_stop_loss}")
-                if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
+                #if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
+                if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss and new_stop_loss > tradeMt5.price_open) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss and new_stop_loss < tradeMt5.price_open):
                     modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss)
-                    # result = mt5.order_modify(
-                    #     tradeMt5.ticket,
-                    #     price,
-                    #     new_stop_loss,
-                    #     tradeMt5.tp,
-                    #     tradeMt5.deviation,
-                    #     tradeMt5.magic,
-                    #     tradeMt5.comment,
-                    #     tradeMt5.type_time,
-                    #     tradeMt5.expiration
-                    # )
-                    # if result.retcode != mt5.TRADE_RETCODE_DONE:
-                    #     print(f"Failed to modify trade {tradeMt5.ticket}. Error code: {result.retcode}")
-
 
         time.sleep(1)  
 
@@ -276,7 +263,7 @@ def modify_position(account,order_number, symbol, new_stop_loss):
     if order_result[0] == 10009:
         return True
     else:
-        print_to_console_and_file("modify_position account " + str(accountName) + " Last MT5 Error : " + order_result.comment)
+        print_to_console_and_file("modify_position account Last MT5 Error : " + order_result.comment)
         return False
 
 
