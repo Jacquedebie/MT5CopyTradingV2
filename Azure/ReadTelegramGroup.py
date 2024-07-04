@@ -25,12 +25,13 @@ http_server_url = 'http://127.0.0.1:9094/'  # Change this to your HTTP server UR
 # Create the client and connect
 client = TelegramClient('session_name', api_id, api_hash)
 
-# Magic numbers for each group
-group_magic_numbers = {
+# Dictionary to maintain group names and their corresponding magic numbers
+groups_info = {
     'Gold Scalper Ninja': 2784583072,
     'FABIO VIP SQUAD': 2784583073,
     'THE FOREX BOAR 🚀': 2784583074,
-    'JDB Copy Signals': 2784583075
+    'JDB Copy Signals': 2784583075,
+    '‎سيد تجارة الفوركس': 2784583076
 }
 
 def send_telegram_message(chat_id, message):
@@ -108,92 +109,93 @@ def placeOrder(symbol, trade_type, sl, tp, magic_number):
         else:
             print("Order placed successfully")
 
-async def process_group_messages(group_name, start_date, session):
-    entity = None
-    async for dialog in client.iter_dialogs():
-        if dialog.name == group_name:
-            entity = dialog.entity
-            break
+async def process_all_group_messages(start_date, session):
+    entities = {}
+    for group_name in groups_info.keys():
+        async for dialog in client.iter_dialogs():
+            if dialog.name == group_name:
+                entities[group_name] = dialog.entity
+                break
 
-    if not entity:
-        print(f"Error: Could not find the group '{group_name}'. Please check the group name.")
+    if not entities:
+        print(f"Error: Could not find any of the groups. Please check the group names.")
         return
 
-    channel = entity
-    last_message_id = 0
-    magic_number = group_magic_numbers.get(group_name, 2784583072)
+    last_message_ids = {group_name: 0 for group_name in entities}
 
     while True:
         try:
-            result = await client(GetHistoryRequest(
-                peer=PeerChannel(channel.id),
-                limit=1,  # Fetch the latest message
-                offset_date=None,
-                offset_id=0,
-                max_id=0,
-                min_id=0,
-                add_offset=0,
-                hash=0
-            ))
+            for group_name, entity in entities.items():
+                magic_number = groups_info[group_name]
+                result = await client(GetHistoryRequest(
+                    peer=PeerChannel(entity.id),
+                    limit=1,  # Fetch the latest message
+                    offset_date=None,
+                    offset_id=0,
+                    max_id=0,
+                    min_id=0,
+                    add_offset=0,
+                    hash=0
+                ))
 
-            messages = result.messages
-            if messages:
-                latest_message = messages[0]
-                message_date = latest_message.date.replace(tzinfo=timezone.utc)
+                messages = result.messages
+                if messages:
+                    latest_message = messages[0]
+                    message_date = latest_message.date.replace(tzinfo=timezone.utc)
 
-                if latest_message.id != last_message_id and message_date >= start_date:
-                    message_text = latest_message.message.upper()  # Convert message to uppercase
-                    message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
-                    print(f"{group_name}: {message_text} at {message_date_str}")
+                    if latest_message.id != last_message_ids[group_name] and message_date >= start_date:
+                        message_text = latest_message.message.upper()  # Convert message to uppercase
+                        message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+                        print(f"{group_name}: {message_text} at {message_date_str}")
 
-                    def parse_message(text):
-                        trade_type = None
-                        if "SELL LIMIT" in text:
-                            trade_type = "Sell Limit"
-                        elif "BUY LIMIT" in text:
-                            trade_type = "Buy Limit"
-                        elif "SELL" in text and "LIMIT" not in text:
-                            trade_type = "Sell"
-                        elif "BUY" in text and "LIMIT" not in text:
-                            trade_type = "Buy"
+                        def parse_message(text):
+                            trade_type = None
+                            if "SELL LIMIT" in text:
+                                trade_type = "Sell Limit"
+                            elif "BUY LIMIT" in text:
+                                trade_type = "Buy Limit"
+                            elif "SELL" in text and "LIMIT" not in text:
+                                trade_type = "Sell"
+                            elif "BUY" in text and "LIMIT" not in text:
+                                trade_type = "Buy"
 
-                        symbol = None
-                        if "XAUUSD" in text:
-                            symbol = "GOLD"
-                        elif "GOLD" in text:
-                            symbol = "GOLD"
+                            symbol = None
+                            if "XAUUSD" in text:
+                                symbol = "GOLD"
+                            elif "GOLD" in text:
+                                symbol = "GOLD"
 
-                        sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
-                        sl = sl_line[0].split(':')[-1].strip() if sl_line else None
-                        sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
+                            sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
+                            sl = sl_line[0].split(':')[-1].strip() if sl_line else None
+                            sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
-                        tp_lines = [line for line in text.split('\n') if 'TP' in line]
-                        tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
+                            tp_lines = [line for line in text.split('\n') if 'TP' in line]
+                            tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
 
-                        return trade_type, symbol, sl, tps
+                            return trade_type, symbol, sl, tps
 
-                    async def parse_and_send_messages(message_text):
-                        try:
-                            trade_type, symbol, sl, tps = parse_message(message_text)
+                        async def parse_and_send_messages(message_text):
+                            try:
+                                trade_type, symbol, sl, tps = parse_message(message_text)
 
-                            if trade_type and symbol and sl and tps:
-                                for i, tp in enumerate(tps):
-                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                        message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
-                                        send_telegram_message(JDBCopyTrading_chat_id, message)
-                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                        placeOrder(symbol, trade_type, sl, tp, magic_number)
-                        except IndexError:
-                            print(f"Error parsing message from {group_name}: {message_text}")
-                        except Exception as e:
-                            print(f"Unexpected error: {e}")
+                                if trade_type and symbol and sl and tps:
+                                    for i, tp in enumerate(tps):
+                                        if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                            message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
+                                            send_telegram_message(JDBCopyTrading_chat_id, message)
+                                            #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                            placeOrder(symbol, trade_type, sl, tp, magic_number)
+                            except IndexError:
+                                print(f"Error parsing message from {group_name}: {message_text}")
+                            except Exception as e:
+                                print(f"Unexpected error: {e}")
 
-                    await parse_and_send_messages(message_text)
+                        await parse_and_send_messages(message_text)
 
-                    last_message_id = latest_message.id
+                        last_message_ids[group_name] = latest_message.id
 
         except Exception as e:
-            print(f"Error processing group {group_name}: {e}")
+            print(f"Error processing group messages: {e}")
 
         # Wait for 10 seconds before checking again
         await asyncio.sleep(10)
@@ -232,16 +234,11 @@ async def main():
     await client.start(phone)
     print("Client Created")
 
-    # List of group names to monitor
-    group_names = ['Gold Scalper Ninja', 'FABIO VIP SQUAD', 'THE FOREX BOAR 🚀', 'JDB Copy Signals']
-
     # Start date to filter messages
     start_date = datetime.now(timezone.utc)
 
     async with aiohttp.ClientSession() as session:
-        # Start a task for each group
-        tasks = [process_group_messages(group_name, start_date, session) for group_name in group_names]
-        await asyncio.gather(*tasks)
+        await process_all_group_messages(start_date, session)
 
 with client:
     client.loop.run_until_complete(main())
