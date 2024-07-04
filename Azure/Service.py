@@ -377,6 +377,8 @@ def AddCommunication(accountNumber, message):
 
 def InsertTrade(client_id,trade_data):
    
+    print(trade_data)
+
     # Extracting the necessary fields from the JSON
     trade_ticket = trade_data.get('Ticket')
     trade_magic = trade_data.get('MagicNumber')
