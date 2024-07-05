@@ -144,55 +144,56 @@ async def process_all_group_messages(start_date, session):
                     message_date = latest_message.date.replace(tzinfo=timezone.utc)
 
                     if latest_message.id != last_message_ids[group_name] and message_date >= start_date:
-                        message_text = latest_message.message.upper()  # Convert message to uppercase
-                        message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
-                        print(f"{group_name}: {message_text} at {message_date_str}")
+                        if latest_message.message is not None:  # Check if the message is not None
+                            message_text = latest_message.message.upper()  # Convert message to uppercase
+                            message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+                            print(f"{group_name}: {message_text} at {message_date_str}")
 
-                        def parse_message(text):
-                            trade_type = None
-                            if "SELL LIMIT" in text:
-                                trade_type = "Sell Limit"
-                            elif "BUY LIMIT" in text:
-                                trade_type = "Buy Limit"
-                            elif "SELL" in text and "LIMIT" not in text:
-                                trade_type = "Sell"
-                            elif "BUY" in text and "LIMIT" not in text:
-                                trade_type = "Buy"
+                            def parse_message(text):
+                                trade_type = None
+                                if "SELL LIMIT" in text:
+                                    trade_type = "Sell Limit"
+                                elif "BUY LIMIT" in text:
+                                    trade_type = "Buy Limit"
+                                elif "SELL" in text and "LIMIT" not in text:
+                                    trade_type = "Sell"
+                                elif "BUY" in text and "LIMIT" not in text:
+                                    trade_type = "Buy"
 
-                            symbol = None
-                            if "XAUUSD" in text:
-                                symbol = "GOLD"
-                            elif "GOLD" in text:
-                                symbol = "GOLD"
+                                symbol = None
+                                if "XAUUSD" in text:
+                                    symbol = "GOLD"
+                                elif "GOLD" in text:
+                                    symbol = "GOLD"
 
-                            sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
-                            sl = sl_line[0].split(':')[-1].strip() if sl_line else None
-                            sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
+                                sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
+                                sl = sl_line[0].split(':')[-1].strip() if sl_line else None
+                                sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
-                            tp_lines = [line for line in text.split('\n') if 'TP' in line]
-                            tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
+                                tp_lines = [line for line in text.split('\n') if 'TP' in line]
+                                tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
 
-                            return trade_type, symbol, sl, tps
+                                return trade_type, symbol, sl, tps
 
-                        async def parse_and_send_messages(message_text):
-                            try:
-                                trade_type, symbol, sl, tps = parse_message(message_text)
+                            async def parse_and_send_messages(message_text):
+                                try:
+                                    trade_type, symbol, sl, tps = parse_message(message_text)
 
-                                if trade_type and symbol and sl and tps:
-                                    for i, tp in enumerate(tps):
-                                        if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                            message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
-                                            send_telegram_message(JDBCopyTrading_chat_id, message)
-                                            #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                            placeOrder(symbol, trade_type, sl, tp, magic_number)
-                            except IndexError:
-                                print(f"Error parsing message from {group_name}: {message_text}")
-                            except Exception as e:
-                                print(f"Unexpected error: {e}")
+                                    if trade_type and symbol and sl and tps:
+                                        for i, tp in enumerate(tps):
+                                            if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                                message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
+                                                send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                                placeOrder(symbol, trade_type, sl, tp, magic_number)
+                                except IndexError:
+                                    print(f"Error parsing message from {group_name}: {message_text}")
+                                except Exception as e:
+                                    print(f"Unexpected error: {e}")
 
-                        await parse_and_send_messages(message_text)
+                            await parse_and_send_messages(message_text)
 
-                        last_message_ids[group_name] = latest_message.id
+                            last_message_ids[group_name] = latest_message.id
 
         except Exception as e:
             print(f"Error processing group messages: {e}")
@@ -219,26 +220,4 @@ def InitializeAccounts():
     for row in db_cursor.fetchall():
         counter = counter + 1
         # MAIN
-        instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
-
-        if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
-            print("Failed to initialize MT5 terminal from", instance_path)
-            print("Error:", mt5.last_error())
-        else:
-            print("MT5 initialized successfully for account ID:", row[0])
-
-    db_conn.close()
-
-async def main():
-    InitializeAccounts()
-    await client.start(phone)
-    print("Client Created")
-
-    # Start date to filter messages
-    start_date = datetime.now(timezone.utc)
-
-    async with aiohttp.ClientSession() as session:
-        await process_all_group_messages(start_date, session)
-
-with client:
-    client.loop.run_until_complete(main())
+        instance_path = os.path.join(DIRECTORY, "Instances",
