@@ -220,4 +220,26 @@ def InitializeAccounts():
     for row in db_cursor.fetchall():
         counter = counter + 1
         # MAIN
-        instance_path = os.path.join(DIRECTORY, "Instances",
+        instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
+
+        if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
+            print("Failed to initialize MT5 terminal from", instance_path)
+            print("Error:", mt5.last_error())
+        else:
+            print("MT5 initialized successfully for account ID:", row[0])
+
+    db_conn.close()
+
+async def main():
+    InitializeAccounts()
+    await client.start(phone)
+    print("Client Created")
+
+    # Start date to filter messages
+    start_date = datetime.now(timezone.utc)
+
+    async with aiohttp.ClientSession() as session:
+        await process_all_group_messages(start_date, session)
+
+with client:
+    client.loop.run_until_complete(main())
