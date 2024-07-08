@@ -17,8 +17,7 @@ def init_db():
                   tbl_user_name TEXT NOT NULL,
                   tbl_user_email TEXT NOT NULL,
                   tbl_user_AccountNumber INTEGER NOT NULL,
-                  tbl_user_IDNumber INTEGER NOT NULL,
-                  tbl_user_Active INTEGER NOT NULL)''')
+                  tbl_user_IDNumber INTEGER NOT NULL)''')
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_Account
                  (pk_tbl_account INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_account_name TEXT NOT NULL,
@@ -37,8 +36,7 @@ def init_db():
                   tbl_trade_volume REAL NOT NULL,
                   tbl_trade_profit REAL NOT NULL,
                   tbl_trade_symbol TEXT NOT NULL,
-                  tbl_trade_billed INTEGER NOT NULL,
-                  tbl_trade_time TEXT NOT NULL)''')
+                  tbl_trade_billed INTEGER NOT NULL)''')
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_Communication
                  (pk_tbl_Communication INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_Communication_AccountNumber INTEGER NOT NULL,
@@ -154,16 +152,6 @@ def on_tree_select(event, table, entries, checkboxes=None):
         for (col, var), value in zip(checkboxes.items(), values[offset:]):
             var.set(value)
 
-# Function to sort columns
-def sort_column(tree, col, reverse):
-    items = [(tree.set(k, col), k) for k in tree.get_children('')]
-    items.sort(reverse=reverse)
-
-    for index, (val, k) in enumerate(items):
-        tree.move(k, '', index)
-
-    tree.heading(col, command=lambda: sort_column(tree, col, not reverse))
-
 # Initialize GUI
 init_db()
 root = tk.Tk()
@@ -175,6 +163,12 @@ notebook.grid(row=0, column=0, sticky="nsew")
 
 # Create frames for each tab
 tables = {
+    'tbl_user': ('pk_tbl_user', {
+        'tbl_user_name': 'Name',
+        'tbl_user_email': 'Email',
+        'tbl_user_AccountNumber': 'Account Number',
+        'tbl_user_IDNumber': 'ID Number'
+    }),
     'tbl_Account': ('pk_tbl_account', {
         'tbl_account_name': 'Name',
         'tbl_account_id': 'Account ID',
@@ -183,12 +177,8 @@ tables = {
         'tbl_account_active': 'Active',
         'tbl_account_mainaccount': 'Main Account'
     }),
-    'tbl_user': ('pk_tbl_user', {
-        'tbl_user_name': 'Name',
-        'tbl_user_email': 'Email',
-        'tbl_user_AccountNumber': 'Account Number',
-        'tbl_user_IDNumber': 'ID Number',
-        'tbl_user_Active': 'Active'
+    'tbl_ActiveTrade': ('tbl_ActiveTrade_TicketNr', {
+        'tbl_ActiveTrade_TicketNr': 'Ticket Number'
     }),
     'tbl_trade': ('pk_tbl_trade', {
         'tbl_trade_account': 'Account',
@@ -197,32 +187,19 @@ tables = {
         'tbl_trade_volume': 'Volume',
         'tbl_trade_profit': 'Profit',
         'tbl_trade_symbol': 'Symbol',
-        'tbl_trade_billed': 'Billed',
-        'tbl_trade_time': 'Time'
+        'tbl_trade_billed': 'Billed'
     }),
     'tbl_Communication': ('pk_tbl_Communication', {
         'tbl_Communication_AccountNumber': 'Account Number',
         'tbl_Communication_Time': 'Time',
         'tbl_Communication_Message': 'Message'
-    }),
-    'tbl_ActiveTrade': ('tbl_ActiveTrade_TicketNr', {
-        'tbl_ActiveTrade_TicketNr': 'Ticket Number'
     })
-}
-
-# Tab Names
-tab_names = {
-    'tbl_Account': 'Account',
-    'tbl_user': 'Copy Trade Users',
-    'tbl_trade': 'All Trades',
-    'tbl_Communication': 'Communication',
-    'tbl_ActiveTrade': 'Active Trades'
 }
 
 treeviews = {}
 for table, (pk, columns) in tables.items():
     frame = ttk.Frame(notebook)
-    notebook.add(frame, text=tab_names[table])
+    notebook.add(frame, text=table)
 
     # Labels and Entries
     entries = {}
@@ -231,7 +208,7 @@ for table, (pk, columns) in tables.items():
     for i, (col, text) in enumerate(columns.items()):
         ttk.Label(frame, text=text).grid(row=i + row_offset, column=0, padx=5, pady=5, sticky=tk.W)
         
-        if col in ['tbl_account_active', 'tbl_account_mainaccount', 'tbl_user_Active']:
+        if col in ['tbl_account_active', 'tbl_account_mainaccount']:
             var = tk.IntVar()
             checkbox = ttk.Checkbutton(frame, variable=var)
             checkbox.grid(row=i + row_offset, column=1, padx=5, pady=5)
@@ -241,11 +218,7 @@ for table, (pk, columns) in tables.items():
             entry.grid(row=i + row_offset, column=1, padx=5, pady=5)
             entries[col] = entry
 
-    if table == 'tbl_user':
-        # Update and Delete functionality for tbl_user
-        ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns) + row_offset, column=0, padx=5, pady=5)
-        ttk.Button(frame, text="Delete", command=lambda tbl=table, pk=pk: delete_record(tbl, pk)).grid(row=len(columns) + row_offset, column=1, padx=5, pady=5)
-    elif table == 'tbl_trade':
+    if table == 'tbl_trade':
         # Search functionality for tbl_trade
         ttk.Button(frame, text="Search", command=lambda tbl=table, ent=entries: search_records(tbl, ent)).grid(row=len(columns) + row_offset, column=0, padx=5, pady=5)
     elif table == 'tbl_Communication':
@@ -263,119 +236,28 @@ for table, (pk, columns) in tables.items():
     cols = [pk] + list(columns.keys())
     tree = ttk.Treeview(frame, columns=cols, show='headings')
     for col in cols:
-        tree.heading(col, text=col, command=lambda _col=col: sort_column(tree, _col, False))
+        tree.heading(col, text=col)
     tree.grid(row=len(columns) + 1 + row_offset, column=0, columnspan=4, padx=5, pady=5)
     tree.bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
 
     treeviews[table] = tree
     display_records(table, tree)
 
-# Add "Filter on Account" tab
-filter_frame = ttk.Frame(notebook)
-notebook.add(filter_frame, text="Filter on Account")
+def search_records(table, entries):
+    search_criteria = {col: entry.get() for col, entry in entries.items() if entry.get()}
+    if not search_criteria:
+        messagebox.showwarning("Search Warning", "No search criteria provided.")
+        return
 
-# Search fields for tbl_account
-ttk.Label(filter_frame, text="Account Name").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-account_name_entry = ttk.Entry(filter_frame)
-account_name_entry.grid(row=0, column=1, padx=5, pady=5)
-
-ttk.Label(filter_frame, text="Account ID").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
-account_id_entry = ttk.Entry(filter_frame)
-account_id_entry.grid(row=0, column=3, padx=5, pady=5)
-
-# Search fields for tbl_user
-ttk.Label(filter_frame, text="User Name").grid(row=0, column=4, padx=5, pady=5, sticky=tk.W)
-user_name_entry = ttk.Entry(filter_frame)
-user_name_entry.grid(row=0, column=5, padx=5, pady=5)
-
-ttk.Label(filter_frame, text="User Email").grid(row=0, column=6, padx=5, pady=5, sticky=tk.W)
-user_email_entry = ttk.Entry(filter_frame)
-user_email_entry.grid(row=0, column=7, padx=5, pady=5)
-
-# Search buttons
-ttk.Button(filter_frame, text="Search Account", command=lambda: search_accounts()).grid(row=0, column=8, padx=5, pady=5)
-ttk.Button(filter_frame, text="Search User", command=lambda: search_users()).grid(row=0, column=9, padx=5, pady=5)
-
-# Treeview for tbl_account
-account_tree = ttk.Treeview(filter_frame, columns=["tbl_account_name", "tbl_account_id"], show='headings')
-account_tree.heading("tbl_account_name", text="Account Name", command=lambda: sort_column(account_tree, "tbl_account_name", False))
-account_tree.heading("tbl_account_id", text="Account ID", command=lambda: sort_column(account_tree, "tbl_account_id", False))
-account_tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5)
-account_tree.bind("<ButtonRelease-1>", lambda event: filter_related_records("account"))
-
-# Treeview for tbl_user
-user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email"], show='headings')
-user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column(user_tree, "tbl_user_name", False))
-user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column(user_tree, "tbl_user_email", False))
-user_tree.grid(row=1, column=5, columnspan=5, padx=5, pady=5)
-user_tree.bind("<ButtonRelease-1>", lambda event: filter_related_records("user"))
-
-# Treeview for tbl_trade
-trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"], show='headings')
-for col in ["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"]:
-    trade_tree.heading(col, text=col, command=lambda _col=col: sort_column(trade_tree, _col, False))
-trade_tree.grid(row=2, column=0, columnspan=10, padx=5, pady=5)
-
-# Treeview for tbl_Communication
-communication_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Communication", "tbl_Communication_AccountNumber", "tbl_Communication_Time", "tbl_Communication_Message"], show='headings')
-for col in ["pk_tbl_Communication", "tbl_Communication_AccountNumber", "tbl_Communication_Time", "tbl_Communication_Message"]:
-    communication_tree.heading(col, text=col, command=lambda _col=col: sort_column(communication_tree, _col, False))
-communication_tree.grid(row=3, column=0, columnspan=10, padx=5, pady=5)
-
-def search_accounts():
-    query = "SELECT tbl_account_name, tbl_account_id FROM tbl_Account"
+    query = f"SELECT * FROM {table} WHERE "
+    conditions = []
     params = []
-    if account_name_entry.get() or account_id_entry.get():
-        query += " WHERE 1=1"
-        if account_name_entry.get():
-            query += " AND tbl_account_name LIKE ?"
-            params.append(f"%{account_name_entry.get()}%")
-        if account_id_entry.get():
-            query += " AND tbl_account_id LIKE ?"
-            params.append(f"%{account_id_entry.get()}%")
-    display_records('tbl_Account', account_tree, query, params)
 
-def search_users():
-    query = "SELECT tbl_user_name, tbl_user_email FROM tbl_user"
-    params = []
-    if user_name_entry.get() or user_email_entry.get():
-        query += " WHERE 1=1"
-        if user_name_entry.get():
-            query += " AND tbl_user_name LIKE ?"
-            params.append(f"%{user_name_entry.get()}%")
-        if user_email_entry.get():
-            query += " AND tbl_user_email LIKE ?"
-            params.append(f"%{user_email_entry.get()}%")
-    display_records('tbl_user', user_tree, query, params)
+    for col, value in search_criteria.items():
+        conditions.append(f"{col} LIKE ?")
+        params.append(f"%{value}%")
 
-def filter_related_records(source):
-    if source == "account":
-        selected_item = account_tree.selection()[0]
-        values = account_tree.item(selected_item, 'values')
-        account_id = values[1]
-
-        # Filter tbl_trade records
-        trade_query = "SELECT * FROM tbl_trade WHERE tbl_trade_account = ?"
-        display_records('tbl_trade', trade_tree, trade_query, (account_id,))
-
-        # Filter tbl_Communication records
-        communication_query = "SELECT * FROM tbl_Communication WHERE tbl_Communication_AccountNumber = ?"
-        display_records('tbl_Communication', communication_tree, communication_query, (account_id,))
-    elif source == "user":
-        selected_item = user_tree.selection()[0]
-        values = user_tree.item(selected_item, 'values')
-        user_account_number = values[1]
-
-        # Filter tbl_trade records
-        trade_query = "SELECT * FROM tbl_trade WHERE tbl_trade_account = ?"
-        display_records('tbl_trade', trade_tree, trade_query, (user_account_number,))
-
-        # Filter tbl_Communication records
-        communication_query = "SELECT * FROM tbl_Communication WHERE tbl_Communication_AccountNumber = ?"
-        display_records('tbl_Communication', communication_tree, communication_query, (user_account_number,))
-
-# Display all accounts and users initially
-search_accounts()
-search_users()
+    query += " AND ".join(conditions)
+    display_records(table, treeviews[table], query, params)
 
 root.mainloop()
