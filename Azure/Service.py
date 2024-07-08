@@ -13,8 +13,8 @@ import subprocess
 
 from datetime import datetime
 
-ADDRESS = "127.0.0.1"
-#ADDRESS = "0.0.0.0"
+#ADDRESS = "127.0.0.1"
+ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()

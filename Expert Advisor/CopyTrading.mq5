@@ -4,8 +4,8 @@
 CTrade trade;
 CPositionInfo m_Position; 
 
-//string Address = "172.174.154.125";
-string Address = "127.0.0.1";
+string Address = "172.174.154.125";
+//string Address = "127.0.0.1";
 int Port = 9094;
 
 double botVersion = 1.1;
