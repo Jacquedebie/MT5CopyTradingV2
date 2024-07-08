@@ -5,6 +5,7 @@ CTrade trade;
 CPositionInfo m_Position; 
 
 string Address = "172.174.154.125";
+//string Address = "127.0.0.1";
 int Port = 9094;
 
 double botVersion = 1.1;
@@ -16,8 +17,12 @@ input string Cell_Number = "1234567890";
 input string Name_Surname = "John Doe"; 
 input bool Auto_Lot_Size = 1.0; 
 input double Lot_Size = 1.0; 
+input string Identification_Number = "12345678910";
 
-datetime lastPingTime = 0; // Store the last ping time
+datetime lastPingTime = 0; 
+
+
+#property description "Welcome to My Expert Advisor! Please configure the settings as needed."
 
 void RequestHandler(string json)
 {
@@ -56,18 +61,25 @@ void RequestHandler(string json)
 
 void Authenticate(string json)
 {
-    Print("Authenticate");
 
-    long account_id = AccountInfoInteger(ACCOUNT_LOGIN);
+   Print(json);
 
-    string ConnectedMessage = "{\"Code\": \"ClientConnected\", \"ClientID\": \"" + IntegerToString(account_id) + "\", " +
-                          "\"Email\": \"" + Email_Address + "\", " +
-                          "\"CellNumber\": \"" + Cell_Number + "\", " +
-                          "\"NameSurname\": \"" + Name_Surname + "\", " +
-                          "\"AutoLotSize\": " + (Auto_Lot_Size ? "true" : "false") + ", " +
-                          "\"LotSize\": " + DoubleToString(Lot_Size) + "}";
+    CJAVal authenticateObj;
+             authenticateObj["Code"] = "Authenticate";
+             authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+             authenticateObj["Email"] = Email_Address;
+             authenticateObj["CellNumber"] = Cell_Number;
+             authenticateObj["Name"] = Name_Surname;
+             authenticateObj["IdentificationNumber"] = Identification_Number;
+             
+             authenticateObj["AutoLotSize"] = Auto_Lot_Size;
+             authenticateObj["LotSize"] = DoubleToString(Lot_Size);
 
+             
+    string ConnectedMessage = authenticateObj.Serialize();                      
+    
     HTTPSend(socket, ConnectedMessage);
+    
 }
 
 void OpenTrade(string json)
@@ -109,20 +121,18 @@ void OpenTrade(string json)
          }
          else
          {
-             // Create a JSON object for success response
-             CJAVal successObj;
-             successObj["Code"] = "TradeStatus";
-             successObj["Ticket"] = IntegerToString(trade.ResultOrder());
-             successObj["Magic"] = magicNumber;
-             successObj["Symbol"] = symbol;
-             successObj["Type"] = IntegerToString(orderType);
-             successObj["Volume"] = DoubleToString(volume);
-             successObj["Comment"] = comment;
+             CJAVal authenticateObj;
+             authenticateObj["Code"] = "TradeStatus";
+             authenticateObj["Ticket"] = IntegerToString(trade.ResultOrder());
+             authenticateObj["Magic"] = magicNumber;
+             authenticateObj["Symbol"] = symbol;
+             authenticateObj["Type"] = IntegerToString(orderType);
+             authenticateObj["Volume"] = DoubleToString(volume);
+             authenticateObj["Comment"] = comment;
              
-             string successResponse = successObj.Serialize();
+             string authenticateResponse = authenticateObj.Serialize();
          
-             // Send the success JSON back through HTTP
-             HTTPSend(socket, successResponse); 
+             HTTPSend(socket, authenticateResponse); 
          }
     }
     else
@@ -159,6 +169,8 @@ void CloseTradesByMagicNumber(string magicNumber)
                 double volume = PositionGetDouble(POSITION_VOLUME);
                 double profit = PositionGetDouble(POSITION_PROFIT);
                 ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
+                datetime positionTime = (datetime)PositionGetInteger(POSITION_TIME);
+                string formattedTime = TimeToString(positionTime, TIME_DATE | TIME_MINUTES);
 
                 trade.PositionClose(m_Position.Ticket());
                 
@@ -167,6 +179,7 @@ void CloseTradesByMagicNumber(string magicNumber)
                                       "\"Symbol\": \"" + symbol + "\","
                                       "\"Volume\": \"" + volume + "\","
                                       "\"Profit\": \"" + profit + "\","
+                                      "\"OrderTime\": \"" + formattedTime + "\","
                                       "\"MagicNumber\": \"" + positionMagicNumber + "\"}";
                 
                 HTTPSend(socket, TradeDetails);    
@@ -190,18 +203,6 @@ void Notification(string json)
     else 
     {
         Print("Failed to deserialize JSON in Notification: ", json);
-    }
-}
-
-void SendAccountID()
-{
-    if (socket != INVALID_HANDLE)
-    {
-        int account_id = AccountInfoInteger(ACCOUNT_LOGIN);
-        string message = "{\"Code\":\"Authenticate\",\"account_id\":" + IntegerToString(account_id) + "}";
-
-        bool sent = HTTPSend(socket, message);
-        Print("Message sent: ", sent); 
     }
 }
 
@@ -285,16 +286,6 @@ void ConnectToServer()
     if (socket != INVALID_HANDLE && SocketConnect(socket, Address, Port, 1000))
     {
         Print("Connected to ", Address, ":", Port);
-
-        string subject, issuer, serial, thumbprint;
-        datetime expiration;
-
-        if (SocketTlsCertificate(socket, subject, issuer, serial, thumbprint, expiration))
-        {
-            Print("TLS certificate:\nOwner: ", subject, "\nIssuer: ", issuer, "\nNumber: ", serial, "\nPrint: ", thumbprint, "\nExpiration: ", expiration);
-            ExtTLS = true;
-        }
-        SendAccountID(); 
     }
     else
     {
@@ -304,8 +295,19 @@ void ConnectToServer()
     }
 }
 
+
 void OnInit()
 {
+    if(GlobalVariableCheck("EA_Active"))
+    {
+        MessageBox("The EA is already running on another chart.", "EA", MB_OK);
+        ExpertRemove();
+    }
+    else
+    {
+        GlobalVariableSet("EA_Active", 1);
+    }
+
     ConnectToServer();
     lastPingTime = TimeCurrent(); // Initialize the last ping time
 }
@@ -335,6 +337,11 @@ void OnTick()
 
 void OnDeinit(const int reason)
 {
+    if(GlobalVariableCheck("EA_Active"))
+    {
+        GlobalVariableDel("EA_Active");
+    }
+    
     if (socket != INVALID_HANDLE)
     {
         SocketClose(socket);
