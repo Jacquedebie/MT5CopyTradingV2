@@ -13,7 +13,8 @@ import subprocess
 
 from datetime import datetime
 
-ADDRESS = "0.0.0.0"
+ADDRESS = "127.0.0.1"
+#ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()
@@ -46,7 +47,7 @@ async def RequestHandler(json_string, writer):
             await ClientConnected(writer, json_data)  # Ensure to await async function
         elif action == "Ping":
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{current_time}] ping received")
+            #print(f"[{current_time}] ping received")
         else:
             print("Invalid action code.")
     
@@ -61,19 +62,38 @@ def TradeProfit(client_id,json_data):
 
 async def ClientConnected(writer, json_data):
     try:
-        account_id = json_data.get('account_id')
+        account_id = json_data.get('AccountId')
+        user_Email = json_data.get('Email')
+        user_Name = json_data.get('Name')
+        user_Id = json_data.get('IdentificationNumber')
 
         if account_id:
             client_accounts[writer] = account_id
             AddCommunication(client_accounts.get(writer, ""),"Conected")
 
-        broadcast_message = json.dumps({"Code": "Login", "Status": "Success"})
-
-        await broadcast(broadcast_message) 
-
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{current_time}] Client Connected :")
 
+        try:
+            DB_CONNECTION = dbPath
+            db_conn = sqlite3.connect(DB_CONNECTION)
+            db_cursor = db_conn.cursor()
+            db_cursor.execute("SELECT tbl_user_Active FROM tbl_user WHERE tbl_user_accountNumber = ?", (account_id,))
+
+            rows = db_cursor.fetchall()
+            number_of_rows = len(rows)
+
+            if(number_of_rows > 0):
+                print("Account already exist")
+            else:
+                db_cursor.execute("INSERT INTO tbl_user (tbl_user_name, tbl_user_email, tbl_user_accountNumber, tbl_user_idnumber, tbl_user_Active) VALUES (?,?,?,?,?)", (user_Name,user_Email,account_id,user_Id,1))
+                db_conn.commit()
+
+            db_conn.close()
+            
+        except sqlite3.Error as error:
+            print("Error occurred:", error)
+
+        print(f"[{current_time}] Client Connected :")
         print( client_accounts.values())
 
 
@@ -81,9 +101,14 @@ async def ClientConnected(writer, json_data):
         print("Received data is not valid JSON")
 
 async def handle_client(reader, writer):
+
     addr = writer.get_extra_info('peername')
 
     clients.add(writer)
+
+    authenticateRequest = {"Code": "Authenticate"}
+
+    writer.write(json.dumps(authenticateRequest).encode('utf-8'))
 
     try:
         while True:
@@ -91,7 +116,7 @@ async def handle_client(reader, writer):
             if data:
                 json_received = data.decode('utf-8')
                 
-                await RequestHandler(json_received, writer)  # Ensure to await async function
+                await RequestHandler(json_received, writer)  
             else:
                 break
     except asyncio.CancelledError:
@@ -266,7 +291,6 @@ def modify_position(account,order_number, symbol, new_stop_loss):
         print_to_console_and_file("modify_position account Last MT5 Error : " + order_result.comment)
         return False
 
-
 def check_for_closed_trades(loop):
     print("Checking for closed trades")
 
@@ -385,6 +409,7 @@ def InsertTrade(client_id,trade_data):
     trade_volume = float(trade_data.get('Volume', 0))
     trade_profit = float(trade_data.get('Profit', 0))
     trade_symbol = trade_data.get('Symbol')
+    trade_time = trade_data.get('OrderTime')
 
     DB_CONNECTION = dbPath
     db_conn = sqlite3.connect(DB_CONNECTION)
@@ -398,9 +423,10 @@ def InsertTrade(client_id,trade_data):
             tbl_trade_volume, 
             tbl_trade_profit, 
             tbl_trade_symbol,
-            tbl_trade_billed
-        ) VALUES (?,?, ?, ?, ?, ?, ?)""", 
-        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0)
+            tbl_trade_billed,
+            tbl_trade_time
+        ) VALUES (?,?, ?, ?, ?, ?, ?,?)""", 
+        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0,trade_time)
     )
     
     db_conn.commit()
