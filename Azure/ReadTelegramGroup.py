@@ -31,8 +31,14 @@ groups_info = {
     'FABIO VIP SQUAD': 2784583073,
     'THE FOREX BOAR 🚀': 2784583074,
     'JDB Copy Signals': 2784583075,
-    '‎سيد تجارة الفوركس': 2784583076
+    '‎سيد تجارة الفوركس': 2784583076,
+    'GOLD FATHER CHRIS': 2784583077,
+    '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583078,
+    '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583079
 }
+
+# List of symbols to look for
+symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'BTCUSD']  # Add more symbols as needed
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -68,46 +74,44 @@ async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number)
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-def placeOrder(symbol, trade_type, sl, tp, magic_number):
-    print(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Magic: {magic_number}")
+def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
+    print(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print(f"Symbol {symbol} not found")
+        return
+
+    if trade_type == "Buy Limit":
+        order_type = mt5.ORDER_TYPE_BUY_LIMIT
+    elif trade_type == "Sell Limit":
+        order_type = mt5.ORDER_TYPE_SELL_LIMIT
+    elif trade_type == "Buy":
+        order_type = mt5.ORDER_TYPE_BUY
+        price = symbol_info.ask
+    elif trade_type == "Sell":
+        order_type = mt5.ORDER_TYPE_SELL
+        price = symbol_info.bid
     else:
-        print(f"Symbol {symbol} found")
-        price = 0
+        print(f"Unsupported trade type: {trade_type}")
+        return
 
-        if trade_type == "Buy Limit":
-            order_type = mt5.ORDER_TYPE_BUY_LIMIT
-        elif trade_type == "Sell Limit":
-            order_type = mt5.ORDER_TYPE_SELL_LIMIT
-        elif trade_type == "Buy":
-            order_type = mt5.ORDER_TYPE_BUY
-            price = symbol_info.ask
-        elif trade_type == "Sell":
-            order_type = mt5.ORDER_TYPE_SELL
-            price = symbol_info.bid
-        else:
-            print(f"Unsupported trade type: {trade_type}")
-            return
-        
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": symbol_info.volume_min,
-            "type": order_type,
-            "price": price,
-            "tp": float(tp),
-            "sl": float(sl),
-            "magic": magic_number,
-            "type_filling": mt5.ORDER_FILLING_IOC
-        }
+    request = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbol,
+        "volume": symbol_info.volume_min,
+        "type": order_type,
+        "price": float(price),
+        "tp": float(tp),
+        "sl": float(sl),
+        "magic": magic_number,
+        "type_filling": mt5.ORDER_FILLING_IOC
+    }
 
-        order_result = mt5.order_send(request)
-        if order_result.retcode != mt5.TRADE_RETCODE_DONE:
-            print("Error placing order:", order_result.comment)
-        else:
-            print("Order placed successfully")
+    order_result = mt5.order_send(request)
+    if order_result.retcode != mt5.TRADE_RETCODE_DONE:
+        print("Error placing order:", order_result.comment)
+    else:
+        print("Order placed successfully")
 
 async def process_all_group_messages(start_date, session):
     entities = {}
@@ -151,41 +155,61 @@ async def process_all_group_messages(start_date, session):
 
                             def parse_message(text):
                                 trade_type = None
+                                price = None
                                 if "SELL LIMIT" in text:
                                     trade_type = "Sell Limit"
                                 elif "BUY LIMIT" in text:
                                     trade_type = "Buy Limit"
                                 elif "SELL" in text and "LIMIT" not in text:
                                     trade_type = "Sell"
+                                    price_line = re.findall(r"\d+\.\d+", text)
+                                    if price_line:
+                                        price = float(price_line[0])
                                 elif "BUY" in text and "LIMIT" not in text:
                                     trade_type = "Buy"
+                                    price_line = re.findall(r"\d+\.\d+", text)
+                                    if price_line:
+                                        price = float(price_line[0])
 
                                 symbol = None
-                                if "XAUUSD" in text:
-                                    symbol = "GOLD"
-                                elif "GOLD" in text:
-                                    symbol = "GOLD"
-
+                                for sym in symbols:
+                                    if sym in text:
+                                        symbol = sym
+                                        break
+                                
+                                if symbol == "USOIL":
+                                    symbol = "XBRUSD"
+                                    
                                 sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
                                 sl = sl_line[0].split(':')[-1].strip() if sl_line else None
                                 sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
                                 tp_lines = [line for line in text.split('\n') if 'TP' in line]
                                 tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
-
-                                return trade_type, symbol, sl, tps
+                                print(f"TPs: {tps} SL: {sl} Price: {price} Trade Type: {trade_type} Symbol: {symbol}")
+                                return trade_type, symbol, sl, tps, price
 
                             async def parse_and_send_messages(message_text):
                                 try:
-                                    trade_type, symbol, sl, tps = parse_message(message_text)
+                                    trade_type, symbol, sl, tps, price = parse_message(message_text)
 
                                     if trade_type and symbol and sl and tps:
+                                        if price and trade_type in ["Buy", "Sell"]:
+                                            symbol_info = mt5.symbol_info(symbol)
+                                            if symbol_info:
+                                                if trade_type == "Buy" and price < symbol_info.bid:
+                                                    trade_type = "Buy Limit"
+                                                elif trade_type == "Sell" and price > symbol_info.ask:
+                                                    trade_type = "Sell Limit"
+                                        
                                         for i, tp in enumerate(tps):
                                             if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                 message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
                                                 send_telegram_message(JDBCopyTrading_chat_id, message)
                                                 #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                                placeOrder(symbol, trade_type, sl, tp, magic_number)
+                                                placeOrder(symbol, trade_type, sl, tp, price, magic_number)
+                                    else:
+                                        print(f"Trade not placed. Symbol: {symbol}, Trade Type: {trade_type}, Price: {price}, SL: {sl}, TPs: {tps}")
                                 except IndexError:
                                     print(f"Error parsing message from {group_name}: {message_text}")
                                 except Exception as e:
