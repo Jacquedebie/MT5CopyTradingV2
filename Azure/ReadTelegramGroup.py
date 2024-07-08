@@ -179,6 +179,8 @@ async def process_all_group_messages(start_date, session):
                                 
                                 if symbol == "USOIL":
                                     symbol = "XBRUSD"
+                                elif symbol == "XAUUSD":
+                                    symbol = "GOLD"
                                     
                                 sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
                                 sl = sl_line[0].split(':')[-1].strip() if sl_line else None
