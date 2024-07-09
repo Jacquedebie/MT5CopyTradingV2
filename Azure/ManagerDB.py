@@ -307,9 +307,10 @@ account_tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5)
 account_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "account"))
 
 # Treeview for tbl_user
-user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email"], show='headings')
+user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email", "tbl_user_AccountNumber"], show='headings')
 user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column(user_tree, "tbl_user_name", False))
 user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column(user_tree, "tbl_user_email", False))
+user_tree.heading("tbl_user_AccountNumber", text="Account Number", command=lambda: sort_column(user_tree, "tbl_user_AccountNumber", False))
 user_tree.grid(row=1, column=5, columnspan=5, padx=5, pady=5)
 user_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "user"))
 
@@ -342,7 +343,7 @@ def search_accounts():
     display_records('tbl_Account', account_tree, query, params)
 
 def search_users():
-    query = "SELECT tbl_user_name, tbl_user_email FROM tbl_user"
+    query = "SELECT tbl_user_name, tbl_user_email, tbl_user_AccountNumber FROM tbl_user"
     params = []
     if user_name_entry.get() or user_email_entry.get():
         query += " WHERE 1=1"
@@ -378,7 +379,7 @@ def filter_related_records(source):
     elif source == "user":
         selected_item = user_tree.selection()[0]
         values = user_tree.item(selected_item, 'values')
-        user_account_number = values[1]
+        user_account_number = values[2]  # Assuming the third column is the account number
 
         # Filter tbl_trade records
         trade_query = "SELECT * FROM tbl_trade WHERE tbl_trade_account = ?"
