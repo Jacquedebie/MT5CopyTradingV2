@@ -258,13 +258,16 @@ for table, (pk, columns) in tables.items():
         ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns) + row_offset, column=1, padx=5, pady=5)
         ttk.Button(frame, text="Delete", command=lambda tbl=table, pk=pk: delete_record(tbl, pk)).grid(row=len(columns) + row_offset, column=2, padx=5, pady=5)
         ttk.Button(frame, text="Clear", command=lambda ent=entries, cb=checkboxes: clear_entries(ent, cb)).grid(row=len(columns) + row_offset, column=3, padx=5, pady=5)
+    
+    # Refresh button
+    ttk.Button(frame, text="Refresh", command=lambda tbl=table: display_records(tbl, treeviews[tbl])).grid(row=len(columns) + row_offset, column=4, padx=5, pady=5)
 
     # Treeview
     cols = [pk] + list(columns.keys())
     tree = ttk.Treeview(frame, columns=cols, show='headings')
     for col in cols:
         tree.heading(col, text=col, command=lambda _col=col: sort_column(tree, _col, False))
-    tree.grid(row=len(columns) + 1 + row_offset, column=0, columnspan=4, padx=5, pady=5)
+    tree.grid(row=len(columns) + 1 + row_offset, column=0, columnspan=5, padx=5, pady=5)
     tree.bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
 
     treeviews[table] = tree
@@ -321,6 +324,9 @@ communication_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Communication",
 for col in ["pk_tbl_Communication", "tbl_Communication_AccountNumber", "tbl_Communication_Time", "tbl_Communication_Message"]:
     communication_tree.heading(col, text=col, command=lambda _col=col: sort_column(communication_tree, _col, False))
 communication_tree.grid(row=3, column=0, columnspan=10, padx=5, pady=5)
+
+# Refresh button for Filter on Account tab
+ttk.Button(filter_frame, text="Refresh", command=lambda: [search_accounts(), search_users()]).grid(row=4, column=0, columnspan=10, padx=5, pady=5)
 
 def search_accounts():
     query = "SELECT tbl_account_name, tbl_account_id FROM tbl_Account"
