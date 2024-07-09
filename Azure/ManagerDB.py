@@ -304,14 +304,14 @@ account_tree = ttk.Treeview(filter_frame, columns=["tbl_account_name", "tbl_acco
 account_tree.heading("tbl_account_name", text="Account Name", command=lambda: sort_column(account_tree, "tbl_account_name", False))
 account_tree.heading("tbl_account_id", text="Account ID", command=lambda: sort_column(account_tree, "tbl_account_id", False))
 account_tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5)
-account_tree.bind("<ButtonRelease-1>", lambda event: filter_related_records("account"))
+account_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "account"))
 
 # Treeview for tbl_user
 user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email"], show='headings')
 user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column(user_tree, "tbl_user_name", False))
 user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column(user_tree, "tbl_user_email", False))
 user_tree.grid(row=1, column=5, columnspan=5, padx=5, pady=5)
-user_tree.bind("<ButtonRelease-1>", lambda event: filter_related_records("user"))
+user_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "user"))
 
 # Treeview for tbl_trade
 trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"], show='headings')
@@ -353,6 +353,14 @@ def search_users():
             query += " AND tbl_user_email LIKE ?"
             params.append(f"%{user_email_entry.get()}%")
     display_records('tbl_user', user_tree, query, params)
+
+def handle_selection(event, source):
+    if source == "account":
+        user_tree.selection_remove(user_tree.selection())
+        filter_related_records("account")
+    elif source == "user":
+        account_tree.selection_remove(account_tree.selection())
+        filter_related_records("user")
 
 def filter_related_records(source):
     if source == "account":
