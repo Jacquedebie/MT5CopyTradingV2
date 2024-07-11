@@ -411,12 +411,6 @@ def InsertTrade(client_id,trade_data):
     trade_symbol = trade_data.get('Symbol')
     trade_time = trade_data.get('OrderTime')
 
-    try:
-        trade_time_converted = datetime.strptime(trade_time, '%Y.%m.%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        trade_time_converted = trade_time  # If already in correct format or unrecognized, use as is
-
-
     DB_CONNECTION = dbPath
     db_conn = sqlite3.connect(DB_CONNECTION)
     db_cursor = db_conn.cursor()
@@ -432,7 +426,7 @@ def InsertTrade(client_id,trade_data):
             tbl_trade_billed,
             tbl_trade_time
         ) VALUES (?,?, ?, ?, ?, ?, ?,?)""", 
-        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0,trade_time_converted)
+        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0,trade_time)
     )
     
     db_conn.commit()
