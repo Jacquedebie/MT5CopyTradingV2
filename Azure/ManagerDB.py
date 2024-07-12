@@ -90,7 +90,12 @@ def insert_record(table, entries, checkboxes=None):
         conn.close()
 
 def update_record(table, entries, pk, checkboxes=None):
-    selected_item = treeviews[table].selection()[0]
+    selected_items = treeviews[table].selection()
+    if not selected_items:
+        messagebox.showerror("Update Error", "No record selected to update.")
+        return
+
+    selected_item = selected_items[0]
     values = treeviews[table].item(selected_item, 'values')
     pk_value = values[0]  # Assuming the primary key is the first column in the treeview
 
@@ -98,21 +103,57 @@ def update_record(table, entries, pk, checkboxes=None):
     c = conn.cursor()
     try:
         set_clause = ', '.join([f'{col} = ?' for col in entries.keys()])
-        values = [entry.get() for entry in entries.values()]
+        update_values = [entry.get() if isinstance(entry, tk.Entry) else entry.get() for entry in entries.values()]
 
         if checkboxes:
+            chekvalue = {key: bool(var.get()) for key, var in checkboxes.items()}
+            print("Checkboxes:", chekvalue)
             for col, var in checkboxes.items():
                 set_clause += f', {col} = ?'
-                values.append(var.get())
+                update_values.append(bool(var.get()))
 
-        values.append(pk_value)
+        update_values.append(pk_value)
         query = f'UPDATE {table} SET {set_clause} WHERE {pk} = ?'
-        c.execute(query, values)
+
+        # Print the query and values for debugging
+        print("Executing query:", query)
+        print("With values:", update_values)
+
+        # Print all entries and checkboxes for debugging
+        print("Entries:", {key: entry.get() if isinstance(entry, tk.Entry) else entry.get() for key, entry in entries.items()})
+        if checkboxes:
+            print("Checkboxes:", chekvalue)
+
+        c.execute(query, update_values)
+
+        # Check if the table is tbl_Transactions and if tbl_Transactions_Paid is set to true
+        if table == 'tbl_Transactions':
+            if chekvalue:
+                paid_value = chekvalue
+                print(f"tbl_Transactions_Paid value: {paid_value}")  # Debug line
+                if paid_value :  # Adjust the comparison based on actual value type (int)
+                    account_number = entries['tbl_Transactions_AccountNumber'].get()
+                    update_user_query = 'UPDATE tbl_user SET tbl_user_Active = 1 WHERE tbl_user_AccountNumber = ?'
+                    print("Executing user update query:", update_user_query)
+                    print("With account number:", account_number)
+                    c.execute(update_user_query, (account_number,))
+            else:
+                print("tbl_Transactions_Paid not found in entries")
+
         conn.commit()
         clear_entries(entries, checkboxes)
         display_records(table, treeviews[table])
+
+        # Reselect the updated item in the Treeview by primary key value
+        for item in treeviews[table].get_children():
+            if treeviews[table].item(item)['values'][0] == pk_value:
+                treeviews[table].selection_set(item)
+                treeviews[table].see(item)
+                break
+
     except Exception as e:
         messagebox.showerror("Update Error", f"Failed to update record: {e}")
+        print("Error details:", e)
     finally:
         conn.close()
 
@@ -504,7 +545,7 @@ def RunTradeForTheWeek():
                     SELECT 1 FROM tbl_Transactions
                     WHERE tbl_Transactions.tbl_Transactions_AccountNumber = UnallocatedTrades.account_number
                     AND tbl_Transactions.tbl_Transactions_DateFrom = (SELECT start_date FROM DateRange)
-                    AND tbl_Transactions.tbl_Transactions_DateTo = (SELECT end date FROM DateRange)
+                    AND tbl_Transactions.tbl_Transactions_DateTo = (SELECT end_date FROM DateRange)
                 )
         ''')
 
@@ -512,9 +553,11 @@ def RunTradeForTheWeek():
         summary_ids = c.execute('''
             SELECT pk_tbl_Transactions, tbl_Transactions_AccountNumber
             FROM tbl_Transactions
-            WHERE tbl_Transactions_DateFrom = (SELECT DATE('now', 'weekday 0', '-7 days'))
+            WHERE tbl_Transactions_DateFrom = DATE('now', 'weekday 0', '-7 days')
             AND tbl_Transactions_DateTo = DATE('now')
         ''').fetchall()
+
+        print("Summary IDs fetched: ", summary_ids)  # Debug line
 
         # Insert records into tbl_TradeTransaction for each account
         for summary_id, account_number in summary_ids:
@@ -534,19 +577,26 @@ def RunTradeForTheWeek():
                     AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
             ''', (summary_id, account_number))
 
+            print(f"Inserted trades for account {account_number} into tbl_TradeTransaction")  # Debug line
+
         # Update tbl_user by setting tbl_user_Active to 0 for users with the same tbl_account_id as tbl_Transactions_AccountNumber
-        c.executemany('''
-            UPDATE tbl_user
-            SET tbl_user_Active = 0
-            WHERE tbl_user_AccountNumber = ?
-        ''', [(account_number,) for _, account_number in summary_ids])
+        for _, account_number in summary_ids:
+            c.execute('''
+                UPDATE tbl_user
+                SET tbl_user_Active = 0
+                WHERE tbl_user_AccountNumber = ?
+            ''', (account_number,))
+
+            print(f"Updated tbl_user set tbl_user_Active to 0 for account number {account_number}")  # Debug line
 
         conn.commit()
         messagebox.showinfo("Success", "Trade summary for the week has been calculated and inserted successfully.")
     except Exception as e:
         messagebox.showerror("RunTradeForTheWeek Error", f"Failed to run trade summary for the week: {e}")
+        print(f"Error details: {e}")  # Detailed error logging
     finally:
         conn.close()
+
 
 # Display all accounts and users initially
 search_accounts()
