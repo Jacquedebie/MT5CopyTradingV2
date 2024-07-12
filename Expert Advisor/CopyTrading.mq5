@@ -92,7 +92,7 @@ void OpenTrade(string json)
     {
         string symbol = jsonObj["Symbol"].ToStr();
         ENUM_ORDER_TYPE orderType = (ENUM_ORDER_TYPE)StringToInteger(jsonObj["Type"].ToStr());
-        double volume = jsonObj["Volume"].ToDbl();
+        double volume = Lot_Size;
         double price = jsonObj["Open Price"].ToDbl();
         double sl = jsonObj["SL"].ToDbl(); 
         double tp = jsonObj["TP"].ToDbl(); 
