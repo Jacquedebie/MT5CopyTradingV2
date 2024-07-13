@@ -218,7 +218,7 @@ def on_tree_select(event, table, entries, checkboxes=None):
         for (col, var), value in zip(checkboxes.items(), values[offset:]):
             var.set(value)
 
-# Function to sort columns
+# Function to sort columns for each Treeview
 def sort_column(tree, col, reverse):
     items = [(tree.set(k, col), k) for k in tree.get_children('')]
     items.sort(reverse=reverse)
@@ -227,6 +227,24 @@ def sort_column(tree, col, reverse):
         tree.move(k, '', index)
 
     tree.heading(col, command=lambda: sort_column(tree, col, not reverse))
+
+def sort_column_account(tree, col, reverse):
+    sort_column(tree, col, reverse)
+
+def sort_column_user(tree, col, reverse):
+    sort_column(tree, col, reverse)
+
+def sort_column_trade(tree, col, reverse):
+    sort_column(tree, col, reverse)
+
+def sort_column_communication(tree, col, reverse):
+    sort_column(tree, col, reverse)
+
+def sort_column_active_trade(tree, col, reverse):
+    sort_column(tree, col, reverse)
+
+def sort_column_transactions(tree, col, reverse):
+    sort_column(tree, col, reverse)
 
 # Function to handle search in tbl_trade and tbl_Communication
 def search_records(table, entries):
@@ -395,8 +413,8 @@ ttk.Button(filter_frame, text="Search User", command=lambda: search_users()).gri
 
 # Treeview for tbl_account
 account_tree = ttk.Treeview(filter_frame, columns=["tbl_account_name", "tbl_account_id"], show='headings')
-account_tree.heading("tbl_account_name", text="Account Name", command=lambda: sort_column(account_tree, "tbl_account_name", False))
-account_tree.heading("tbl_account_id", text="Account ID", command=lambda: sort_column(account_tree, "tbl_account_id", False))
+account_tree.heading("tbl_account_name", text="Account Name", command=lambda: sort_column_account(account_tree, "tbl_account_name", False))
+account_tree.heading("tbl_account_id", text="Account ID", command=lambda: sort_column_account(account_tree, "tbl_account_id", False))
 account_tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
 account_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "account"))
 
@@ -406,9 +424,9 @@ account_vsb.grid(row=1, column=5, sticky="ns")
 
 # Treeview for tbl_user
 user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email", "tbl_user_AccountNumber"], show='headings')
-user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column(user_tree, "tbl_user_name", False))
-user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column(user_tree, "tbl_user_email", False))
-user_tree.heading("tbl_user_AccountNumber", text="Account Number", command=lambda: sort_column(user_tree, "tbl_user_AccountNumber", False))
+user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column_user(user_tree, "tbl_user_name", False))
+user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column_user(user_tree, "tbl_user_email", False))
+user_tree.heading("tbl_user_AccountNumber", text="Account Number", command=lambda: sort_column_user(user_tree, "tbl_user_AccountNumber", False))
 user_tree.grid(row=1, column=6, columnspan=5, padx=5, pady=5, sticky="nsew")
 user_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "user"))
 
@@ -419,7 +437,7 @@ user_vsb.grid(row=1, column=11, sticky="ns")
 # Treeview for tbl_trade
 trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"], show='headings')
 for col in ["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"]:
-    trade_tree.heading(col, text=col, command=lambda _col=col: sort_column(trade_tree, _col, False))
+    trade_tree.heading(col, text=col, command=lambda _col=col: sort_column_trade(trade_tree, _col, False))
 trade_tree.grid(row=2, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
 trade_vsb = ttk.Scrollbar(filter_frame, orient="vertical", command=trade_tree.yview)
@@ -429,7 +447,7 @@ trade_vsb.grid(row=2, column=11, sticky="ns")
 # Treeview for tbl_Transactions
 transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"], show='headings')
 for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"]:
-    transactions_tree.heading(col, text=col, command=lambda _col=col: sort_column(transactions_tree, _col, False))
+    transactions_tree.heading(col, text=col, command=lambda _col=col: sort_column_transactions(transactions_tree, _col, False))
 transactions_tree.grid(row=3, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
 transactions_vsb = ttk.Scrollbar(filter_frame, orient="vertical", command=transactions_tree.yview)
