@@ -554,10 +554,10 @@ if __name__ == "__main__":
     # script_thread.join()
 
     # Path to the script
-    # script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
+    script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
 
     # # Command to open a new command prompt and run the script
-    # subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
+    subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
 
     main()
 
