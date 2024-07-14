@@ -16,7 +16,7 @@ input string Email_Address = "your.email@example.com";
 input string Cell_Number = "1234567890"; 
 input string Name_Surname = "John Doe"; 
 input bool Auto_Lot_Size = 1.0; 
-input double Lot_Size = 1.0; 
+input double Lot_Size = 0.01; 
 input string Identification_Number = "12345678910";
 
 datetime lastPingTime = 0; 
@@ -62,7 +62,7 @@ void RequestHandler(string json)
 void Authenticate(string json)
 {
 
-   Print(json);
+   Print("Authenticate : " + json);
 
     CJAVal authenticateObj;
              authenticateObj["Code"] = "Authenticate";
@@ -198,7 +198,7 @@ void Notification(string json)
     {
         // Extract some information from the JSON object for display
         string message = jsonObj["message"].ToStr();
-        Comment("Message: ", message);
+        Comment(message);
     } 
     else 
     {

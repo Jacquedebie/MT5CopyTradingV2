@@ -26,6 +26,10 @@ dbPath = ""
 
 trailing_stop_distance = 1
 
+accountActiveMessage = "Your account is active.";
+accountNotActiveMessage = "Your account is not active. Please contact support. You have an outstanding amount of: $";
+
+
 #----------------  Websocket Server  ----------------
 
 async def RequestHandler(json_string, writer):
@@ -47,7 +51,14 @@ async def RequestHandler(json_string, writer):
             await ClientConnected(writer, json_data)  # Ensure to await async function
         elif action == "Ping":
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            #print(f"[{current_time}] ping received")
+            #check if Active account
+            if IsAccountActive(client_id):
+                writer.write(json.dumps({"Code": "Notifications","message": accountActiveMessage}).encode('utf-8'))
+                await writer.drain()
+            else:
+                writer.write(json.dumps({"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(client_id)}).encode('utf-8'))
+                await writer.drain()
+
         else:
             print("Invalid action code.")
     
@@ -83,7 +94,14 @@ async def ClientConnected(writer, json_data):
             number_of_rows = len(rows)
 
             if(number_of_rows > 0):
-                print("Account already exist")
+                #convert rows[0] to bool and check for true or false
+                if rows[0][0] == 1:
+                    print("Account already exist",rows[0])
+                else:
+                    #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
+                    messageRequest = {"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(account_id)}
+                    trade_details_json = json.dumps(messageRequest)
+                    await DirectBroadcast(writer,trade_details_json,account_id)
             else:
                 db_cursor.execute("INSERT INTO tbl_user (tbl_user_name, tbl_user_email, tbl_user_accountNumber, tbl_user_idnumber, tbl_user_Active) VALUES (?,?,?,?,?)", (user_Name,user_Email,account_id,user_Id,1))
                 db_conn.commit()
@@ -147,18 +165,20 @@ async def handle_client(reader, writer):
 async def broadcast(message):
     
     for client in clients:
-        client.write(message.encode('utf-8'))
-        await client.drain()
+        #to what clinet id and message
+        if IsAccountActive(client_accounts.get(client, "")):
+            client.write(message.encode('utf-8'))
+            await client.drain()
 
     AddCommunication(str(list(client_accounts.values())), message)
 
-async def DirectBroadcast(client,message):
+async def DirectBroadcast(writer,message,clientID):
     
 
-    client.write(message.encode('utf-8'))
-    await client.drain()
+    writer.write(message.encode('utf-8'))
+    await writer.drain()
 
-    AddCommunication(client, message)
+    AddCommunication(clientID, message)
 
 #----------------  MT5 Listener  ----------------
 
@@ -389,7 +409,7 @@ def print_to_console_and_file(message):
     print(message)
 
 def AddCommunication(accountNumber, message):
-
+    
     date = datetime.now()
 
     DB_CONNECTION = dbPath
@@ -437,6 +457,43 @@ def InsertTrade(client_id,trade_data):
     db_conn.commit()
     db_conn.close()
 
+def IsAccountActive(accountNumber):
+    try:
+        DB_CONNECTION = dbPath
+        db_conn = sqlite3.connect(DB_CONNECTION)
+        db_cursor = db_conn.cursor()
+        db_cursor.execute("SELECT tbl_user_Active FROM tbl_user WHERE tbl_user_accountNumber = ?", (accountNumber,))
+        rows = db_cursor.fetchall()
+        number_of_rows = len(rows)
+
+        if(number_of_rows > 0):
+            #convert rows[0] to bool and check for true or false
+            if rows[0][0] == 1:
+                return True
+            else:
+                return False
+        else:
+            return False
+    except sqlite3.Error as error:
+        print("Error occurred:", error)
+        return False
+
+def GetOustandingAccountProfit(accountNumber):
+    try:
+        DB_CONNECTION = dbPath
+        db_conn = sqlite3.connect(DB_CONNECTION)
+        db_cursor = db_conn.cursor()
+        db_cursor.execute("SELECT SUM(tbl_Transactions_Profit) FROM tbl_Transactions WHERE tbl_Transactions_AccountNumber = ? AND tbl_Transactions_Paid = 0", (accountNumber,))
+        rows = db_cursor.fetchall()
+        number_of_rows = len(rows)
+        if(number_of_rows > 0):
+            return format(rows[0][0], ".2f")
+        else:
+            return 0
+    except sqlite3.Error as error:
+        print("Error occurred:", error)
+        return 0
+    
 #----------------  Main Loops  ----------------
 
 async def main_async():
@@ -499,7 +556,7 @@ if __name__ == "__main__":
     # Path to the script
     script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
 
-    # Command to open a new command prompt and run the script
+    # # Command to open a new command prompt and run the script
     subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
 
     main()
