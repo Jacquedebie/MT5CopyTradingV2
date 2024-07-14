@@ -97,6 +97,9 @@ async def ClientConnected(writer, json_data):
                 #convert rows[0] to bool and check for true or false
                 if rows[0][0] == 1:
                     print("Account already exist",rows[0])
+                    messageRequest = {"Code": "Notifications", "message": accountActiveMessage}
+                    trade_details_json = json.dumps(messageRequest)
+                    await DirectBroadcast(writer,trade_details_json,account_id)
                 else:
                     #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
                     messageRequest = {"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(account_id)}
