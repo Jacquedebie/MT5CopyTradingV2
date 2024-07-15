@@ -11,7 +11,7 @@ import Meta1 as  mt5_Client_1
 
 import subprocess
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 #ADDRESS = "127.0.0.1"
 ADDRESS = "0.0.0.0"
@@ -404,6 +404,22 @@ def InitializeAccounts():
 
     db_conn.close()
 
+def GetTradeDetails(loop):
+    while True:
+        from_date = datetime.now() - timedelta(days=7)
+        to_date = datetime.now() + timedelta(days=1)
+        for account in account_List:
+
+            trades = account.accountList_Number.history_deals_get(from_date, to_date)
+            if trades is None:
+                print(f"No trade history for account {account['login']}, error code: {mt5.last_error()}")
+            else:
+                account_info = account.accountList_Number.account_info()
+                InsertTradeDetail(account_info.login, trades)
+
+
+        time.sleep(3600000)  
+
 #----------------  DB & Files  ----------------
 
 def print_to_console_and_file(message):
@@ -496,7 +512,32 @@ def GetOustandingAccountProfit(accountNumber):
     except sqlite3.Error as error:
         print("Error occurred:", error)
         return 0
-    
+
+def InsertTradeDetail(accountNumber,trade_data):
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+
+    for trade in trade_data:
+        trade_ticket = str(trade.ticket)
+
+        db_cursor.execute("SELECT tbl_trade_ticket FROM tbl_trade WHERE tbl_trade_ticket = ?", (trade_ticket,))
+        deal = db_cursor.fetchone()
+
+        if deal is None:
+            trade_dataJason = {
+                            "Ticket": trade.ticket,
+                            "MagicNumber": trade.magic,
+                            "Volume": trade.volume,
+                            "Profit": trade.profit,
+                            "Symbol": trade.symbol,
+                            "OrderTime": datetime.fromtimestamp(trade.time).strftime('%Y-%m-%d %H:%M:%S')
+                        }
+            InsertTrade(accountNumber,trade_dataJason)
+
+    db_conn.close()
+
+
 #----------------  Main Loops  ----------------
 
 async def main_async():
@@ -526,6 +567,9 @@ def main():
 
     check_modify_trade_thread = threading.Thread(target=check_for_modify_trades, args=(loop,))
     check_modify_trade_thread.start()
+
+    check_TradeDetail_thread = threading.Thread(target=GetTradeDetails, args=(loop,))
+    check_TradeDetail_thread.start()
 
     loop.run_until_complete(main_async())
 
