@@ -487,7 +487,8 @@ def InsertTrade(client_id,trade_data):
 def IsAccountActive(accountNumber):
     for account, active in account_status_list:
         if account == accountNumber:
-            return active
+            print("active:",str(active))
+            return bool(active)
     return False
     # try:
     #     DB_CONNECTION = dbPath
@@ -550,8 +551,9 @@ def InsertTradeDetail(accountNumber,trade_data):
     db_conn.close()
 
 def add_or_update_account_status(account_id, is_active):
+    account_id = str(account_id)  # Ensure account_id is always treated as a string
     for index, (account, active) in enumerate(account_status_list):
-        if account == account_id:
+        if str(account) == account_id:
             account_status_list[index] = (account_id, is_active)
             return
     account_status_list.append((account_id, is_active))
@@ -564,7 +566,7 @@ def update_account_status_list(loop):
             db_conn = sqlite3.connect(DB_CONNECTION)
             db_cursor = db_conn.cursor()
             db_cursor.execute("SELECT tbl_user_accountNumber, tbl_user_Active FROM tbl_user")
-
+            account_status_list.clear()
             rows = db_cursor.fetchall()
             for account_id, active in rows:
                 add_or_update_account_status(account_id, bool(active))
@@ -574,7 +576,7 @@ def update_account_status_list(loop):
         except sqlite3.Error as error:
             print("Error occurred while updating account status list:", error)
 
-        time.sleep(3600)
+        time.sleep(60)
 
 #----------------  Main Loops  ----------------
 
