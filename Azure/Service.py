@@ -462,10 +462,16 @@ def InsertTrade(client_id,trade_data):
     db_conn = sqlite3.connect(DB_CONNECTION)
     db_cursor = db_conn.cursor()
     
-    try:
-        trade_time_converted = datetime.strptime(trade_time, '%Y.%m.%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        trade_time_converted = trade_time  # If already in correct format or unrecognized, use as is
+    formats = ['%Y.%m.%d %H:%M:%S', '%Y.%m.%d %H:%M']
+
+    for fmt in formats:
+        try:
+            trade_time_converted = datetime.strptime(trade_time, fmt).strftime('%Y-%m-%d %H:%M:%S')
+            break
+        except ValueError:
+            continue
+    else:
+        trade_time_converted = trade_time  # If no formats matched, use as is
         
     db_cursor.execute("""
         INSERT INTO tbl_trade (
