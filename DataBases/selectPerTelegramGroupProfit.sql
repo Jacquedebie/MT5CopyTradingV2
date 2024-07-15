@@ -18,6 +18,7 @@ FROM
 LEFT JOIN 
     magic_number_groups ON tbl_trade_magic = magic_number_groups.magic_number
 WHERE 
-    tbl_trade_time BETWEEN '2024-07-01' AND '2024-07-31'  -- Adjust date range as needed
+    tbl_trade_time BETWEEN '2024-07-07' AND '2024-07-14'  -- Adjust date range as needed
 GROUP BY 
-    tbl_trade_account, tbl_trade_magic, group_name;
+    tbl_trade_account, tbl_trade_magic, group_name
+order by group_name	DESC;
