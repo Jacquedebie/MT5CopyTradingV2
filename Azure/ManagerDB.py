@@ -517,98 +517,109 @@ def filter_related_records(source):
         transactions_query = "SELECT * FROM tbl_Transactions WHERE tbl_Transactions_AccountNumber = ?"
         display_records('tbl_Transactions', transactions_tree, transactions_query, (user_account_number,))
 
+import datetime
+
 def RunTradeForTheWeek():
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     try:
-        # Calculate the summary and insert/update into tbl_Transactions
-        c.execute('''
-            WITH DateRange AS (
-                SELECT
-                    DATE('now', 'weekday 0', '-7 days') AS start_date,
-                    DATE('now') AS end_date
-            ),
-            UnallocatedTrades AS (
-                SELECT
-                    tbl_trade_account AS account_number,
-                    COUNT(*) AS total_trades,
-                    SUM(tbl_trade_profit) AS total_profit
-                FROM
-                    tbl_trade
-                WHERE
-                    DATE(tbl_trade_time) BETWEEN (SELECT start_date FROM DateRange) AND (SELECT end_date FROM DateRange)
-                    AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
-                GROUP BY
-                    tbl_trade_account
-            )
-            INSERT INTO tbl_Transactions (
-                tbl_Transactions_AccountNumber,
-                tbl_Transactions_DateFrom,
-                tbl_Transactions_DateTo,
-                tbl_Transactions_TradeCount,
-                tbl_Transactions_Profit,
-                tbl_Transactions_Paid
-            )
-            SELECT
-                account_number,
-                (SELECT start_date FROM DateRange) AS start_date,
-                (SELECT end_date FROM DateRange) AS end_date,
-                total_trades,
-                total_profit,
-                0
-            FROM
-                UnallocatedTrades
-            WHERE
-                NOT EXISTS (
-                    SELECT 1 FROM tbl_Transactions
-                    WHERE tbl_Transactions.tbl_Transactions_AccountNumber = UnallocatedTrades.account_number
-                    AND tbl_Transactions.tbl_Transactions_DateFrom = (SELECT start_date FROM DateRange)
-                    AND tbl_Transactions.tbl_Transactions_DateTo = (SELECT end_date FROM DateRange)
-                )
-        ''')
+        # Calculate the start and end dates for the current week
+        today = datetime.date.today()
+        current_week_start = today - datetime.timedelta(days=today.weekday() + 1)
+        current_week_end = current_week_start + datetime.timedelta(days=6)
 
-        # Get the last inserted summary IDs for each account
-        summary_ids = c.execute('''
-            SELECT pk_tbl_Transactions, tbl_Transactions_AccountNumber
-            FROM tbl_Transactions
-            WHERE tbl_Transactions_DateFrom = DATE('now', 'weekday 0', '-7 days')
-            AND tbl_Transactions_DateTo = DATE('now')
-        ''').fetchall()
+        # Calculate the start and end dates for the past month
+        past_month_start = current_week_start - datetime.timedelta(weeks=4)
+        past_month_end = current_week_end
 
-        print("Summary IDs fetched: ", summary_ids)  # Debug line
+        # Process each week in the past month
+        current_start_date = past_month_start
+        while current_start_date <= past_month_end:
+            current_end_date = current_start_date + datetime.timedelta(days=6)
 
-        # Insert records into tbl_TradeTransaction for each account
-        for summary_id, account_number in summary_ids:
+            # Calculate the summary for unallocated trades within the current week
             c.execute('''
-                INSERT INTO tbl_TradeTransaction (
-                    fk_tbl_Transactions,
-                    fk_tbl_trade
+                WITH UnallocatedTrades AS (
+                    SELECT
+                        tbl_trade_account AS account_number,
+                        COUNT(*) AS total_trades,
+                        SUM(tbl_trade_profit) AS total_profit
+                    FROM
+                        tbl_trade
+                    WHERE
+                        DATE(tbl_trade_time) BETWEEN ? AND ?
+                        AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
+                    GROUP BY
+                        tbl_trade_account
                 )
-                SELECT
-                    ? AS fk_tbl_Transactions,
-                    pk_tbl_trade
-                FROM
-                    tbl_trade
-                WHERE
-                    tbl_trade_account = ?
-                    AND DATE(tbl_trade_time) BETWEEN DATE('now', 'weekday 0', '-7 days') AND DATE('now')
-                    AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
-            ''', (summary_id, account_number))
+                SELECT account_number, total_trades, total_profit FROM UnallocatedTrades
+            ''', (current_start_date, current_end_date))
+            trade_summaries = c.fetchall()
 
-            print(f"Inserted trades for account {account_number} into tbl_TradeTransaction")  # Debug line
+            # Insert or update the summary records in tbl_Transactions
+            for account_number, total_trades, total_profit in trade_summaries:
+                c.execute('''
+                    SELECT pk_tbl_Transactions FROM tbl_Transactions
+                    WHERE tbl_Transactions_AccountNumber = ?
+                      AND tbl_Transactions_DateFrom = ?
+                      AND tbl_Transactions_DateTo = ?
+                ''', (account_number, current_start_date, current_end_date))
+                existing_transaction = c.fetchone()
 
-        # Update tbl_user by setting tbl_user_Active to 0 for users with the same tbl_account_id as tbl_Transactions_AccountNumber
-        for _, account_number in summary_ids:
-            c.execute('''
-                UPDATE tbl_user
-                SET tbl_user_Active = 0
-                WHERE tbl_user_AccountNumber = ?
-            ''', (account_number,))
+                if existing_transaction:
+                    # Update the existing record
+                    transaction_id = existing_transaction[0]
+                    c.execute('''
+                        UPDATE tbl_Transactions
+                        SET tbl_Transactions_TradeCount = tbl_Transactions_TradeCount + ?,
+                            tbl_Transactions_Profit = tbl_Transactions_Profit + ?
+                        WHERE pk_tbl_Transactions = ?
+                    ''', (total_trades, total_profit, transaction_id))
+                else:
+                    # Insert a new record
+                    c.execute('''
+                        INSERT INTO tbl_Transactions (
+                            tbl_Transactions_AccountNumber,
+                            tbl_Transactions_DateFrom,
+                            tbl_Transactions_DateTo,
+                            tbl_Transactions_TradeCount,
+                            tbl_Transactions_Profit,
+                            tbl_Transactions_Paid
+                        )
+                        VALUES (?, ?, ?, ?, ?, 0)
+                    ''', (account_number, current_start_date, current_end_date, total_trades, total_profit))
+                    transaction_id = c.lastrowid
 
-            print(f"Updated tbl_user set tbl_user_Active to 0 for account number {account_number}")  # Debug line
+                # Insert records into tbl_TradeTransaction for each account
+                c.execute('''
+                    INSERT INTO tbl_TradeTransaction (
+                        fk_tbl_Transactions,
+                        fk_tbl_trade
+                    )
+                    SELECT
+                        ? AS fk_tbl_Transactions,
+                        pk_tbl_trade
+                    FROM
+                        tbl_trade
+                    WHERE
+                        tbl_trade_account = ?
+                        AND DATE(tbl_trade_time) BETWEEN ? AND ?
+                        AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
+                ''', (transaction_id, account_number, current_start_date, current_end_date))
+
+            # Update tbl_user by setting tbl_user_Active to 0 for users with the same tbl_account_id as tbl_Transactions_AccountNumber
+            for account_number, _, _ in trade_summaries:
+                c.execute('''
+                    UPDATE tbl_user
+                    SET tbl_user_Active = 0
+                    WHERE tbl_user_AccountNumber = ?
+                ''', (account_number,))
+
+            # Move to the next week
+            current_start_date += datetime.timedelta(days=7)
 
         conn.commit()
-        messagebox.showinfo("Success", "Trade summary for the week has been calculated and inserted successfully.")
+        messagebox.showinfo("Success", "Trade summary for the past month has been calculated and inserted/updated successfully.")
     except Exception as e:
         messagebox.showerror("RunTradeForTheWeek Error", f"Failed to run trade summary for the week: {e}")
         print(f"Error details: {e}")  # Detailed error logging
