@@ -22,6 +22,9 @@ sent_trades = set()
 clients = set()
 client_accounts = {}
 
+account_status_list = []
+
+
 dbPath = ""
 
 trailing_stop_distance = 1
@@ -95,19 +98,24 @@ async def ClientConnected(writer, json_data):
 
             if(number_of_rows > 0):
                 #convert rows[0] to bool and check for true or false
+                is_active = bool(rows[0][0])
                 if rows[0][0] == 1:
                     print("Account already exist",rows[0])
                     messageRequest = {"Code": "Notifications", "message": accountActiveMessage}
                     trade_details_json = json.dumps(messageRequest)
                     await DirectBroadcast(writer,trade_details_json,account_id)
+                    account_status_list.append((account_id, is_active))
                 else:
                     #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
                     messageRequest = {"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(account_id)}
                     trade_details_json = json.dumps(messageRequest)
                     await DirectBroadcast(writer,trade_details_json,account_id)
+                    account_status_list.append((account_id, is_active))
             else:
                 db_cursor.execute("INSERT INTO tbl_user (tbl_user_name, tbl_user_email, tbl_user_accountNumber, tbl_user_idnumber, tbl_user_Active) VALUES (?,?,?,?,?)", (user_Name,user_Email,account_id,user_Id,1))
                 db_conn.commit()
+                is_active = True
+                account_status_list.append((account_id, is_active))
 
             db_conn.close()
             
@@ -477,25 +485,29 @@ def InsertTrade(client_id,trade_data):
     db_conn.close()
 
 def IsAccountActive(accountNumber):
-    try:
-        DB_CONNECTION = dbPath
-        db_conn = sqlite3.connect(DB_CONNECTION)
-        db_cursor = db_conn.cursor()
-        db_cursor.execute("SELECT tbl_user_Active FROM tbl_user WHERE tbl_user_accountNumber = ?", (accountNumber,))
-        rows = db_cursor.fetchall()
-        number_of_rows = len(rows)
+    for account, active in account_status_list:
+        if account == accountNumber:
+            return active
+    return False
+    # try:
+    #     DB_CONNECTION = dbPath
+    #     db_conn = sqlite3.connect(DB_CONNECTION)
+    #     db_cursor = db_conn.cursor()
+    #     db_cursor.execute("SELECT tbl_user_Active FROM tbl_user WHERE tbl_user_accountNumber = ?", (accountNumber,))
+    #     rows = db_cursor.fetchall()
+    #     number_of_rows = len(rows)
 
-        if(number_of_rows > 0):
-            #convert rows[0] to bool and check for true or false
-            if rows[0][0] == 1:
-                return True
-            else:
-                return False
-        else:
-            return False
-    except sqlite3.Error as error:
-        print("Error occurred:", error)
-        return False
+    #     if(number_of_rows > 0):
+    #         #convert rows[0] to bool and check for true or false
+    #         if rows[0][0] == 1:
+    #             return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
+    # except sqlite3.Error as error:
+    #     print("Error occurred:", error)
+    #     return False
 
 def GetOustandingAccountProfit(accountNumber):
     try:
@@ -537,6 +549,32 @@ def InsertTradeDetail(accountNumber,trade_data):
 
     db_conn.close()
 
+def add_or_update_account_status(account_id, is_active):
+    for index, (account, active) in enumerate(account_status_list):
+        if account == account_id:
+            account_status_list[index] = (account_id, is_active)
+            return
+    account_status_list.append((account_id, is_active))
+
+def update_account_status_list(loop):
+    global account_status_list
+    while True:
+        try:
+            DB_CONNECTION = dbPath
+            db_conn = sqlite3.connect(DB_CONNECTION)
+            db_cursor = db_conn.cursor()
+            db_cursor.execute("SELECT tbl_user_accountNumber, tbl_user_Active FROM tbl_user")
+
+            rows = db_cursor.fetchall()
+            for account_id, active in rows:
+                add_or_update_account_status(account_id, bool(active))
+
+            db_conn.close()
+            print("Account status list updated:", account_status_list)
+        except sqlite3.Error as error:
+            print("Error occurred while updating account status list:", error)
+
+        time.sleep(3600)
 
 #----------------  Main Loops  ----------------
 
@@ -570,6 +608,9 @@ def main():
 
     check_TradeDetail_thread = threading.Thread(target=GetTradeDetails, args=(loop,))
     check_TradeDetail_thread.start()
+
+    check_AccountList_thread = threading.Thread(target=update_account_status_list, args=(loop,))
+    check_AccountList_thread.start()
 
     loop.run_until_complete(main_async())
 
