@@ -487,7 +487,6 @@ def InsertTrade(client_id,trade_data):
 def IsAccountActive(accountNumber):
     for account, active in account_status_list:
         if account == accountNumber:
-            print("active:",str(active))
             return bool(active)
     return False
     # try:
@@ -576,7 +575,7 @@ def update_account_status_list(loop):
         except sqlite3.Error as error:
             print("Error occurred while updating account status list:", error)
 
-        time.sleep(60)
+        time.sleep(3600)
 
 #----------------  Main Loops  ----------------
 
