@@ -106,7 +106,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print(f"Symbol {symbol} not found")
-        return
+        return False
 
     if trade_type == "Buy Limit":
         order_type = mt5.ORDER_TYPE_BUY_LIMIT
@@ -120,7 +120,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
         price = symbol_info.bid
     else:
         print(f"Unsupported trade type: {trade_type}")
-        return
+        return False
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -137,8 +137,10 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
     order_result = mt5.order_send(request)
     if order_result.retcode != mt5.TRADE_RETCODE_DONE:
         print("Error placing order:", order_result.comment)
+        return False
     else:
         print("Order placed successfully")
+        return True
 
 async def process_all_group_messages(start_date, session):
     entities = {}
@@ -178,7 +180,10 @@ async def process_all_group_messages(start_date, session):
                         if latest_message.message is not None:  # Check if the message is not None
                             message_text = latest_message.message.upper()  # Convert message to uppercase
                             message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+                            print(f'--------------{group_name}-------------------')
                             print(f"{group_name}: {message_text} at {message_date_str}")
+                            print('---------------------------------')
+                            
 
                             def parse_message(text):
                                 trade_type = None
@@ -215,7 +220,6 @@ async def process_all_group_messages(start_date, session):
 
                                 tp_lines = [line for line in text.split('\n') if 'TP' in line]
                                 tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
-                                print(f"TPs: {tps} SL: {sl} Price: {price} Trade Type: {trade_type} Symbol: {symbol}")
                                 return trade_type, symbol, sl, tps, price
 
                             async def parse_and_send_messages(message_text):
@@ -234,9 +238,9 @@ async def process_all_group_messages(start_date, session):
                                         for i, tp in enumerate(tps):
                                             if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                 message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
-                                                send_telegram_message(JDBCopyTrading_chat_id, message)
                                                 #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                                placeOrder(symbol, trade_type, sl, tp, price, magic_number)
+                                                if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
+                                                    send_telegram_message(JDBCopyTrading_chat_id, message)
                                     else:
                                         print(f"Trade not placed. Symbol: {symbol}, Trade Type: {trade_type}, Price: {price}, SL: {sl}, TPs: {tps}")
                                 except IndexError:
