@@ -57,7 +57,9 @@ groups_info = {
     '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583099,
     'MXGOLDTRADE': 2784583100,
     'FOREX CHAMPION': 2784583101,
-    'Forex Signals🔥💰 XAUUSD': 2784583102
+    'Forex Signals🔥💰 XAUUSD': 2784583102,
+    '🔰PREMIUM Fx Signals💯': 2784583103,
+    '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583104
 
 
 }
