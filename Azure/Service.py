@@ -446,8 +446,7 @@ def AddCommunication(accountNumber, message):
     db_conn.commit()
     db_conn.close()
 
-def InsertTrade(client_id,trade_data):
-   
+def InsertTrade(client_id, trade_data):
     print(trade_data)
 
     # Extracting the necessary fields from the JSON
@@ -463,7 +462,7 @@ def InsertTrade(client_id,trade_data):
     db_cursor = db_conn.cursor()
     
     try:
-        trade_time_converted = datetime.strptime(trade_time, '%Y.%m.%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S')
+        trade_time_converted = datetime.strptime(trade_time, '%Y.%m.%d %H:%M').strftime('%Y-%m-%d %H:%M:16')
     except ValueError:
         trade_time_converted = trade_time  # If already in correct format or unrecognized, use as is
         
@@ -478,7 +477,7 @@ def InsertTrade(client_id,trade_data):
             tbl_trade_billed,
             tbl_trade_time
         ) VALUES (?,?, ?, ?, ?, ?, ?,?)""", 
-        (client_id,trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol,0,trade_time_converted)
+        (client_id, trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol, 0, trade_time_converted)
     )
     
     db_conn.commit()
