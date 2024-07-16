@@ -34,7 +34,32 @@ groups_info = {
     '‎سيد تجارة الفوركس': 2784583076,
     'GOLD FATHER CHRIS': 2784583077,
     '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583078,
-    '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583079
+    '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583079,
+    '𝘼𝙇𝙀𝙓 𝙓𝘼𝙐𝙐𝙎𝘿 𝘾𝙃𝘼𝙎𝙀𝙍 ➤':2784583080,
+    'FOREX EMPIRE': 2784583081,
+    'GBPUSD+USDJPY(GOLD) SIGNALS': 2784583082,
+    'Loi''s Gold TradingRoom': 2784583083,
+    'DENMARKPFOREX': 2784583084,
+    'Gold Snipers Fx - Free Gold Signals': 2784583085,
+    '𝐆𝐎𝐋𝐃 𝐓𝐑𝐀𝐃𝐈𝐍𝐆 𝐀𝐂𝐀𝐃𝐄𝐌𝐘': 2784583086,
+    'Forex Scalping Strategy 📈': 2784583087,
+    'Mr Beast Gold': 2784583088,
+    'Areval Forex™': 2784583089,
+    'FX UNIQUE TRADE 😍😍😍': 2784583090,
+    '🍀KING GOLD FOREX🍀🍀': 2784583091,
+    'King Of Gold⚡️': 2784583092,
+    'GOLD MASTER': 2784583093,
+    'FOREX TRADING SIGNAL(free)': 2784583094,
+    'XAUUSD GBPUSD' : 2784583095,
+    'Chef Hazzim Scalping Maut🏆': 2784583096,
+    'MorganAK1®': 2784583097,
+    'Exnees account manager': 2784583098,
+    '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583099,
+    'MXGOLDTRADE': 2784583100,
+    'FOREX CHAMPION': 2784583101,
+    'Forex Signals🔥💰 XAUUSD': 2784583102
+
+
 }
 
 # List of symbols to look for
