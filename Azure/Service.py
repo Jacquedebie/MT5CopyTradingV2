@@ -426,7 +426,7 @@ def GetTradeDetails(loop):
                 InsertTradeDetail(account_info.login, trades)
 
 
-        time.sleep(3600000)  
+        time.sleep(3600)  
 
 #----------------  DB & Files  ----------------
 
