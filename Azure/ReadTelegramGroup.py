@@ -65,11 +65,14 @@ groups_info = {
     '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583106,
     'Daily Forex Signals': 2784583107,
     'APEX BULL FO®EX SIGNALS (free)': 2784583108,
-    'Barclays Forex®': 2784583109
+    'Barclays Forex®': 2784583109,
+    'GOLD FX SIGNALS': 2784583110,
+    '𝐂𝐀𝐏𝐓𝐀𝐈𝐍 𝐅𝐎𝐑𝐄𝐗 𝐓𝐑𝐀𝐃𝐈𝐍𝐆': 2784583111,
+    'Gold signal killer pips': 2784583112
 }
 
 # List of symbols to look for
-symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'BTCUSD']  # Add more symbols as needed
+symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'BTCUSD','USDCAD']  # Add more symbols as needed
 
 # Dictionary to track counts and timestamps
 trade_tracker = {}
@@ -82,31 +85,6 @@ def send_telegram_message(chat_id, message):
     }
     response = requests.post(url, data=data)
     return response.json()
-
-async def send_http_post_message(session, trade_type, symbol, sl, tp, tp_number):
-    print("Send HTTP POST message")
-    data = {
-        "Code": "Place Trade",
-        "Type": trade_type,
-        "Symbol": symbol,
-        "SL": sl,
-        "TP": tp,
-        "TP_Number": tp_number
-    }
-    print(data)
-    
-    try:
-        async with session.post(http_server_url, json=data) as response:
-            if response.status != 200:
-                print(f"HTTP POST failed with status {response.status}")
-            else:
-                print(f"HTTP POST successful: {response.status}")
-    except aiohttp.ClientResponseError as e:
-        print(f"Client response error: {e}")
-    except aiohttp.ClientConnectionError as e:
-        print(f"Client connection error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
 
 def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
     print(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
@@ -270,7 +248,6 @@ async def process_all_group_messages(start_date, session):
                                                 #This wil place the Trade from the Originator
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
                                                         message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
@@ -280,7 +257,6 @@ async def process_all_group_messages(start_date, session):
                                                 #This wil place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
                                                         message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, groups_info.get('JDB Copy Trading Counter')):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
@@ -289,7 +265,6 @@ async def process_all_group_messages(start_date, session):
                                             else:
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
                                                         message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
