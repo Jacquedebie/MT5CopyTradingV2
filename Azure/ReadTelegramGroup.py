@@ -8,7 +8,7 @@ import MetaTrader5 as mt5
 import os
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Your api_id and api_hash from my.telegram.org
 api_id = '21789309'
@@ -27,10 +27,14 @@ client = TelegramClient('session_name', api_id, api_hash)
 
 # Dictionary to maintain group names and their corresponding magic numbers
 groups_info = {
+    'JDB Copy Trading Counter': 2784583071,
     'Gold Scalper Ninja': 2784583072,
     'FABIO VIP SQUAD': 2784583073,
     'THE FOREX BOAR 🚀': 2784583074,
-    'JDB Copy Signals': 2784583075,
+     'JDB Copy Signals':  2784583075,
+     'JDB Copy Signals2': 2784583076,
+     'JDB Copy Signals3': 2784583077,
+     'JDB Copy Signals4': 2784583078,
     '‎سيد تجارة الفوركس': 2784583076,
     'GOLD FATHER CHRIS': 2784583077,
     '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583078,
@@ -52,20 +56,24 @@ groups_info = {
     'FOREX TRADING SIGNAL(free)': 2784583094,
     'XAUUSD GBPUSD' : 2784583095,
     'Chef Hazzim Scalping Maut🏆': 2784583096,
-    'MorganAK1®': 2784583097,
+    #'MorganAK1®': 2784583097, -SL to HIGH!
     'Exnees account manager': 2784583098,
     '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583099,
     'MXGOLDTRADE': 2784583100,
     'FOREX CHAMPION': 2784583101,
     'Forex Signals🔥💰 XAUUSD': 2784583102,
     '🔰PREMIUM Fx Signals💯': 2784583103,
-    '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583104
-
-
+    '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583104,
+    'Daily Forex Signals': 2784583105,
+    'APEX BULL FO®EX SIGNALS (free)': 2784583106,
+    'Barclays Forex®' : 2784583106
 }
 
 # List of symbols to look for
 symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'BTCUSD']  # Add more symbols as needed
+
+# Dictionary to track counts and timestamps
+trade_tracker = {}
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -142,6 +150,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
         print("Order placed successfully")
         return True
 
+
 async def process_all_group_messages(start_date, session):
     entities = {}
     for group_name in groups_info.keys():
@@ -155,9 +164,10 @@ async def process_all_group_messages(start_date, session):
         return
 
     last_message_ids = {group_name: 0 for group_name in entities}
-
     while True:
         try:
+            # Remove the unused variable
+
             for group_name, entity in entities.items():
                 magic_number = groups_info[group_name]
                 result = await client(GetHistoryRequest(
@@ -184,7 +194,6 @@ async def process_all_group_messages(start_date, session):
                             print(f"{group_name}: {message_text} at {message_date_str}")
                             print('---------------------------------')
                             
-
                             def parse_message(text):
                                 trade_type = None
                                 price = None
@@ -234,13 +243,43 @@ async def process_all_group_messages(start_date, session):
                                                     trade_type = "Buy Limit"
                                                 elif trade_type == "Sell" and price > symbol_info.ask:
                                                     trade_type = "Sell Limit"
-                                        
-                                        for i, tp in enumerate(tps):
-                                            if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                message = f"{trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nFrom: {group_name}\nDate: {message_date_str}"
-                                                #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
-                                                if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
-                                                    send_telegram_message(JDBCopyTrading_chat_id, message)
+
+                                        # Only log when a TP and SL are given
+                                        if sl and tps:
+                                            # Tracking trade counts
+                                            key = (symbol, trade_type)
+                                            now = datetime.now(timezone.utc)
+                                            if key not in trade_tracker:
+                                                trade_tracker[key] = {'count': 0, 'first_entry': now, 'groups': set()}
+                                            
+                                            if magic_number not in trade_tracker[key]['groups']:
+                                                trade_tracker[key]['count'] += 1
+                                                trade_tracker[key]['groups'].add(magic_number)
+                                            
+                                            # Expire old entries
+                                            for k, v in list(trade_tracker.items()):
+                                                if (now - v['first_entry']) > timedelta(minutes=1):
+                                                    del trade_tracker[k]
+                                            
+                                            if trade_tracker[key]['count'] > 3:
+                                                print('------------------More than 3 same symbol----------------------------')
+                                                print(f"Threshold exceeded for {symbol} {trade_type}")
+                                                print('----------------------------------------------')
+                                                trade_tracker[key]['count'] = 0
+                                                trade_tracker[key]['groups'].clear()
+                                            
+                                                for i, tp in enumerate(tps):
+                                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                                        message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if placeOrder(symbol, trade_type, sl, tp, price, groups_info.get('JDB Copy Trading Counter')):
+                                                            send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                        else:
+                                                            print("Failed to place order")
+                                            else:
+                                                message = f"Trade Received\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\nDate: {message_date_str}"
+                                                send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                       
                                     else:
                                         print(f"Trade not placed. Symbol: {symbol}, Trade Type: {trade_type}, Price: {price}, SL: {sl}, TPs: {tps}")
                                 except IndexError:
@@ -294,6 +333,7 @@ async def main():
 
     # Start date to filter messages
     start_date = datetime.now(timezone.utc)
+    
 
     async with aiohttp.ClientSession() as session:
         await process_all_group_messages(start_date, session)
