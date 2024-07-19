@@ -317,6 +317,14 @@ def modify_position(account,order_number, symbol, new_stop_loss):
     # Send order to MT5
     order_result = account.order_send(request)
     if order_result[0] == 10009:
+        trade_details = {
+            "Code": "ModifyTrade",
+            "Symbol": symbol,
+            "SL": new_stop_loss,
+            "magicNumber": order_number
+        }
+        trade_details_json = json.dumps(trade_details)
+        broadcast(trade_details_json)
         return True
     else:
         print_to_console_and_file("modify_position account Last MT5 Error : " + order_result.comment)

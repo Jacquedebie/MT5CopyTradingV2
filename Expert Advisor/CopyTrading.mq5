@@ -19,6 +19,8 @@ input bool Auto_Lot_Size = 1.0;
 input double Lot_Size = 0.01; 
 input string Identification_Number = "12345678910";
 
+input bool Use_Trailing_SL = true; 
+
 datetime lastPingTime = 0; 
 
 
@@ -47,6 +49,10 @@ void RequestHandler(string json)
         else if (jsCode == "Authenticate")
         {
             Authenticate(json);
+        }
+        else if (jsCode == "ModifyTrade")
+        {
+            ModifyTrade(json);
         }
         else
         {
@@ -152,6 +158,17 @@ void CloseTrade(string json)
     }
 }
 
+void ModifyTrade(string json)
+{
+    Print("ModifyTrade called with JSON: ", json);
+    CJAVal jsonObj;
+
+    if (jsonObj.Deserialize(json))
+    {
+         ModifyTradesByMagicNumber(jsonObj["magicNumber"].ToStr(),jsonObj["SL"].ToDbl());
+    }
+}
+
 void CloseTradesByMagicNumber(string magicNumber)
 {
     int totalPositions = PositionsTotal();
@@ -186,6 +203,30 @@ void CloseTradesByMagicNumber(string magicNumber)
             }
         }
     }
+}
+
+void ModifyTradesByMagicNumber(string magicNumber,double SL)
+{
+    if (Use_Trailing_SL)
+    {
+       int totalPositions = PositionsTotal();
+       
+       for(int i = totalPositions - 1; i >= 0; i--)
+       {
+           if(m_Position.SelectByIndex(i))
+           {
+               ulong positionMagicNumber = PositionGetInteger(POSITION_MAGIC);
+               
+               if(positionMagicNumber == magicNumber)
+               {
+                   if(!trade.PositionModify(m_Position.Ticket(), SL, 0))
+                   {
+                       Print("Failed to modify position: ", m_Position.Ticket(), " Error: ", GetLastError());
+                   }
+               }
+           }
+       }
+    }    
 }
 
 void Notification(string json)
