@@ -302,12 +302,11 @@ def check_for_modify_trades(loop):
                 #print(f"Current stop loss: {current_stop_loss}, New stop loss: {new_stop_loss}")
                 #if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
                 if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss and new_stop_loss > tradeMt5.price_open) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss and new_stop_loss < tradeMt5.price_open):
-                    modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss)
+                    modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss, loop)
 
         time.sleep(1)  
 
-async def modify_position(account, order_number, symbol, new_stop_loss):
-    # Function body remains the same
+def modify_position(account,order_number, symbol, new_stop_loss, loop):
     # Create the request
     request = {
         "action": mt5_Client_1.TRADE_ACTION_SLTP,
@@ -325,34 +324,11 @@ async def modify_position(account, order_number, symbol, new_stop_loss):
             "magicNumber": order_number
         }
         trade_details_json = json.dumps(trade_details)
-        await broadcast(trade_details_json)
+        asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
         return True
     else:
         print_to_console_and_file("modify_position account Last MT5 Error : " + order_result.comment)
         return False
-
-async def check_for_modify_trades(loop):
-    print("Checking for Modify trades")
-
-    while True:
-        current_time = datetime.now()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    
-        trades = mt5_Client_1.positions_get()
-        for tradeMt5 in trades:
-            symbol_info = mt5_Client_1.symbol_info(tradeMt5.symbol)
-            price = symbol_info.ask
-            #print(f"Profit from Trade {tradeMt5.ticket}: {tradeMt5.profit}")
-            if tradeMt5.profit > 0:
-                #print(f"Trade {tradeMt5.ticket} is in profit. Modifying stop loss")
-                current_stop_loss = tradeMt5.sl
-                new_stop_loss = price - trailing_stop_distance if tradeMt5.type == mt5_Client_1.ORDER_TYPE_BUY else price + trailing_stop_distance
-                #print(f"Current stop loss: {current_stop_loss}, New stop loss: {new_stop_loss}")
-                #if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
-                if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss and new_stop_loss > tradeMt5.price_open) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss and new_stop_loss < tradeMt5.price_open):
-                    await modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss)
-
-        time.sleep(1)
 
 def check_for_closed_trades(loop):
     print("Checking for closed trades")
@@ -680,4 +656,3 @@ if __name__ == "__main__":
     subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
 
     main()
-
