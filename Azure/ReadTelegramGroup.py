@@ -266,7 +266,18 @@ async def process_all_group_messages(start_date, session):
                                                 print('----------------------------------------------')
                                                 trade_tracker[key]['count'] = 0
                                                 trade_tracker[key]['groups'].clear()
-                                            
+
+                                                #This wil place the Trade from the Originator
+                                                for i, tp in enumerate(tps):    
+                                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                                        message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
+                                                            send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                        else:
+                                                            print("Failed to place order")
+                                                
+                                                #This wil place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                         #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
@@ -276,11 +287,15 @@ async def process_all_group_messages(start_date, session):
                                                         else:
                                                             print("Failed to place order")
                                             else:
-                                                message = f"Trade Received\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\nDate: {message_date_str}"
-                                                send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                for i, tp in enumerate(tps):    
+                                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                                        #asyncio.create_task(send_http_post_message(session, trade_type, symbol, sl, tp, i+1))
+                                                        message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
+                                                            send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                        else:
+                                                            print("Failed to place order")
                                                        
-                                    else:
-                                        print(f"Trade not placed. Symbol: {symbol}, Trade Type: {trade_type}, Price: {price}, SL: {sl}, TPs: {tps}")
                                 except IndexError:
                                     print(f"Error parsing message from {group_name}: {message_text}")
                                 except Exception as e:
