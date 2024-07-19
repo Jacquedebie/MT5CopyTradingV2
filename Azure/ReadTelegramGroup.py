@@ -21,7 +21,8 @@ JDBPrivate_chat_id = '-1001920185934'
 
 # HTTP server URL for POST requests
 http_server_url = 'http://127.0.0.1:9094/'  # Change this to your HTTP server URL
-
+refreshList = 5  # Refresh the list every 5 minutes
+sameSignalCount = 5  # Number of same signals before placing a trade
 # Create the client and connect
 client = TelegramClient('session_name', api_id, api_hash)
 
@@ -235,11 +236,11 @@ async def process_all_group_messages(start_date, session):
                                             
                                             # Expire old entries
                                             for k, v in list(trade_tracker.items()):
-                                                if (now - v['first_entry']) > timedelta(minutes=1):
+                                                if (now - v['first_entry']) > timedelta(minutes=refreshList):
                                                     del trade_tracker[k]
                                             
-                                            if trade_tracker[key]['count'] > 3:
-                                                print('------------------More than 3 same symbol----------------------------')
+                                            if trade_tracker[key]['count'] > sameSignalCount:
+                                                print(f'------------------More than {sameSignalCount} same symbol----------------------------')
                                                 print(f"Threshold exceeded for {symbol} {trade_type}")
                                                 print('----------------------------------------------')
                                                 trade_tracker[key]['count'] = 0
@@ -248,7 +249,7 @@ async def process_all_group_messages(start_date, session):
                                                 #This wil place the Trade from the Originator
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
@@ -257,7 +258,7 @@ async def process_all_group_messages(start_date, session):
                                                 #This wil place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, groups_info.get('JDB Copy Trading Counter')):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
