@@ -6,6 +6,7 @@ import MetaTrader5 as mt5
 import os
 import sqlite3
 import struct
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import Meta1 as  mt5_Client_1
 
@@ -13,8 +14,8 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-#ADDRESS = "127.0.0.1"
-ADDRESS = "0.0.0.0"
+ADDRESS = "127.0.0.1"
+#ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()
@@ -30,8 +31,8 @@ dbPath = ""
 
 trailing_stop_distance = 1
 
-accountActiveMessage = "Your account is active.";
-accountNotActiveMessage = "Your account is not active. Please contact support. You have an outstanding amount of: $";
+accountActiveMessage = "Your account is active."
+accountNotActiveMessage = "Your account is not active. Please contact support. You have an outstanding amount of: $"
 
 
 #----------------  Websocket Server  ----------------
@@ -43,21 +44,6 @@ async def RequestHandler(json_string, writer):
     AddCommunication(client_id, json_string)
 
     try:
-        json_data = json.loads(json_string)
-        print("JSON data successfully parsed")
-    except json.JSONDecodeError as e:
-        print(f"JSON decoding failed: {e}")
-        error_position = e.pos
-        snippet = json_string[error_position - 50:error_position + 50]
-        print(f"Problematic JSON snippet: {snippet}")
-    except MemoryError as e:
-        print(f"Memory error: {e}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
-
-    try:
-
         json_data = json.loads(json_string)
 
         action = json_data.get('Code')
@@ -78,11 +64,15 @@ async def RequestHandler(json_string, writer):
                 writer.write(json.dumps({"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(client_id)}).encode('utf-8'))
                 await writer.drain()
 
-        else:
-            print("Invalid action code.")
-    
-    except json.JSONDecodeError:
-        return "Invalid JSON string."
+    except json.JSONDecodeError as e:
+        print(f"JSON decoding failed: {e}")
+        error_position = e.pos
+        snippet = json_string[error_position - 50:error_position + 50]
+        print(f"Problematic JSON snippet: {snippet}")
+    except MemoryError as e:
+        print(f"Memory error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def TradeStatus(json_data):
     print(json_data)
@@ -156,8 +146,8 @@ async def ClientConnected(writer, json_data):
         # request history for the account
 
         today = datetime.today()
-        yesterday = today - timedelta(days=1)
-        tomorrow = today + timedelta(days=1)
+        yesterday = today - timedelta(days=2)
+        tomorrow = today + timedelta(days=2)
 
         messageRequest = {
             "Code": "AccountHistory",
@@ -554,11 +544,12 @@ def InsertTradeHistory(trade_data):
             "Profit": trade_data['Profit'],
             "Magic": trade_data['Magic'],
             "Symbol": trade_data['Symbol'],
-            "PositionTime": trade_data['PositionTime']
+            "PositionTime": trade_data['PositionTime'],
+            "Type": trade_data['Type']
         }
 
         db_cursor.execute(
-            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed) VALUES (?, ?, ?, ?, ?, ?, ?,?)",
+            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed,tbl_trade_type) VALUES (?, ?, ?, ?, ?, ?, ?,?,?)",
             (
                 trade_data_json["Ticket"], 
                 trade_data_json["Volume"], 
@@ -567,7 +558,8 @@ def InsertTradeHistory(trade_data):
                 trade_data_json["PositionTime"],
                 account_id,
                 trade_data['Magic'],
-                0
+                0,
+                trade_data_json["Type"]
             )
         )
 
@@ -705,13 +697,81 @@ def update_account_status_list(loop):
 
         time.sleep(3600)
 
+import asyncio
+from datetime import datetime, timedelta
+import json
+
+async def daily_Billing():
+    print("Running daily task at 00:00 PM")
+
+    for client in list(clients):  # Use a copy of the list to avoid modification during iteration
+        account = client_accounts.get(client, "")
+        if IsAccountActive(account):
+            try:
+                if client is not None and client.write is not None:
+                    today = datetime.now()
+                    current_day_of_week = today.weekday()  
+                    days_since_monday = current_day_of_week  
+
+                    monday = today - timedelta(days=days_since_monday)
+
+                    print("Dates from Monday to today:")
+
+                    for i in range(days_since_monday + 1):
+                        day = monday + timedelta(days=i)
+                        day_str = day.strftime('%Y-%m-%d')
+
+                        day_obj = datetime.strptime(day_str, '%Y-%m-%d')
+                        yesterday = day_obj - timedelta(days=1)
+                        tomorrow = day_obj + timedelta(days=1)
+
+                        messageRequest = {
+                            "Code": "AccountHistory",
+                            "From": yesterday.strftime("%Y-%m-%d"),
+                            "To": tomorrow.strftime("%Y-%m-%d")
+                        }
+
+                        print(f"Sending billing request for account {account} for date {day_str}")
+                        print(messageRequest)
+                        
+                        trade_history_json = json.dumps(messageRequest)
+                        client.write(trade_history_json.encode('utf-8'))
+                        AddCommunication(str(account), trade_history_json)
+
+                        await client.drain()
+                        print(f"Billing request sent to account: {account}")
+                        await asyncio.sleep(5)  
+                else:
+                    print(f"Invalid client or client.write is None for account: {account}")
+            except Exception as e:
+                print(f"An error occurred while sending billing request to account {account}: {e}")
+            finally:
+                pass
+ 
+# Example usage
+
+def setup_scheduler():
+
+    print("Setting up scheduler")
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(daily_Billing, 'cron', hour=00, minute=00)
+    scheduler.start()
+
+
 #----------------  Main Loops  ----------------
+
 
 async def main_async():
     server = await asyncio.start_server(handle_client, ADDRESS, PORT)
     print(f"Server listening on {ADDRESS}:{PORT}")
+
+    setup_scheduler()
+
     async with server:
         await server.serve_forever()
+
+    
 
 def main():
     InitializeAccounts()
