@@ -1,5 +1,6 @@
 #include <Trade\Trade.mqh>
 #include <JAson.mqh>
+#include <stdlib.mqh>
 
 CTrade trade;
 CPositionInfo m_Position; 
@@ -58,6 +59,10 @@ void RequestHandler(string json)
         else if (jsCode == "ModifyTradeSLTP")
         {
             ModifyTradeSLTP(json);
+        }
+        else if (jsCode == "AccountHistory")
+        {
+            AccountHistory(json);
         }
         else
         {
@@ -204,17 +209,7 @@ void CloseTradesByMagicNumber(string magicNumber)
                 datetime positionTime = (datetime)PositionGetInteger(POSITION_TIME);
                 string formattedTime = TimeToString(positionTime, TIME_DATE | TIME_MINUTES);
 
-                trade.PositionClose(m_Position.Ticket());
-                
-                string TradeDetails = "{\"Code\": \"TradeProfit\", \"ClientID\": \"" + accountID + "\","
-                                      "\"Ticket\": \"" + positionTicket + "\","
-                                      "\"Symbol\": \"" + symbol + "\","
-                                      "\"Volume\": \"" + volume + "\","
-                                      "\"Profit\": \"" + profit + "\","
-                                      "\"OrderTime\": \"" + formattedTime + "\","
-                                      "\"MagicNumber\": \"" + positionMagicNumber + "\"}";
-                
-                HTTPSend(socket, TradeDetails);    
+                trade.PositionClose(m_Position.Ticket());  
             }
         }
     }
@@ -286,14 +281,108 @@ void Notification(string json)
     }
 }
 
+void AccountHistory(string json)
+{
+    Print("Account History Requested");
+
+    CJAVal jsonObj;
+
+    if (jsonObj.Deserialize(json))
+    {
+        string dateFromStr = jsonObj["From"].ToStr();
+        string dateToStr = jsonObj["To"].ToStr();
+
+        datetime DateFrom = StringToTime(dateFromStr);
+        datetime DateTo = StringToTime(dateToStr);
+
+        if (HistorySelect(DateFrom, DateTo))
+        {
+            int totalDeals = HistoryDealsTotal();
+            CJAVal jsonTradesArray;
+            jsonTradesArray.Clear();
+
+            for (int i = 0; i < totalDeals; i++)
+            {
+                ulong ticket = HistoryDealGetTicket(i);
+                string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
+                double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
+                double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+                ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
+                datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+                ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+
+                CJAVal jsonTrade;
+                jsonTrade["Ticket"] = IntegerToString(ticket);
+                jsonTrade["Symbol"] = symbol;
+                jsonTrade["Profit"] = DoubleToString(profit);
+                jsonTrade["Volume"] = DoubleToString(volume);
+                jsonTrade["AccountID"] = IntegerToString(accountID);
+                jsonTrade["Magic"] = IntegerToString(positionMagicNumber);
+                jsonTrade["PositionTime"] = TimeToString(positionTime, TIME_DATE | TIME_MINUTES);
+
+                jsonTradesArray.Add(jsonTrade); 
+            }
+  
+            CJAVal finalJson;
+            
+            finalJson["Code"] = "AccountHistory"; 
+            finalJson["Trades"] = jsonTradesArray;
+
+            string finalJsonStr = finalJson.Serialize();
+            
+            HTTPSend(socket, finalJsonStr); 
+
+            
+        }
+        else
+        {
+            Print("Failed to select history for the given date range");
+        }
+    }
+    else
+    {
+        Print("Failed to deserialize JSON");
+    }
+}
+
+
+
+
 bool HTTPSend(int socket, string request)
 {
     char req[];
 
+    // Convert the request string to a char array
     int len = StringToCharArray(request, req) - 1;
+    
+    // Ensure the length is non-negative
+    if (len < 0)
+        return false;
 
-    return (len >= 0) && ((ExtTLS ? SocketTlsSend(socket, req, len) : SocketSend(socket, req, len)) == len);
+    // Convert the length to a 4-byte array in big-endian format
+    uchar len_bytes[4];
+    len_bytes[0] = (uchar)((len >> 24) & 0xFF);
+    len_bytes[1] = (uchar)((len >> 16) & 0xFF);
+    len_bytes[2] = (uchar)((len >> 8) & 0xFF);
+    len_bytes[3] = (uchar)(len & 0xFF);
+
+    // Create a new array to hold the length prefix and the message
+    char prefixed_req[];
+    ArrayResize(prefixed_req, 4 + len);
+
+    // Copy the length bytes into the prefixed request array
+    for (int i = 0; i < 4; i++)
+        prefixed_req[i] = len_bytes[i];
+
+    // Copy the original request bytes into the prefixed request array
+    for (int i = 0; i < len; i++)
+        prefixed_req[4 + i] = req[i];
+
+    // Send the prefixed request
+    int total_len = 4 + len;
+    return (ExtTLS ? SocketTlsSend(socket, prefixed_req, total_len) : SocketSend(socket, prefixed_req, total_len)) == total_len;
 }
+
 
 bool HTTPRecv(int socket, uint timeout)
 {
