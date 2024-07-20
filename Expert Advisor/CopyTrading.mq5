@@ -8,7 +8,7 @@ string Address = "172.174.154.125";
 //string Address = "127.0.0.1";
 int Port = 9094;
 
-double botVersion = 1.1;
+double botVersion = 1.2;
 bool ExtTLS = false;
 int socket = INVALID_HANDLE;
 
@@ -20,6 +20,7 @@ input double Lot_Size = 0.01;
 input string Identification_Number = "12345678910";
 
 input bool Use_Trailing_SL = true; 
+input bool Change_Order_When_Master_Change_SL_OR_TP = true; 
 
 datetime lastPingTime = 0; 
 
@@ -53,6 +54,10 @@ void RequestHandler(string json)
         else if (jsCode == "ModifyTrade")
         {
             ModifyTrade(json);
+        }
+        else if (jsCode == "ModifyTradeSLTP")
+        {
+            ModifyTradeSLTP(json);
         }
         else
         {
@@ -165,7 +170,17 @@ void ModifyTrade(string json)
 
     if (jsonObj.Deserialize(json))
     {
-         ModifyTradesByMagicNumber(jsonObj["magicNumber"].ToStr(),jsonObj["SL"].ToDbl());
+         ModifyTradesByMagicNumber(jsonObj["magicNumber"].ToStr(),jsonObj["SL"].ToDbl(),jsonObj["TP"].ToDbl());
+    }
+}
+void ModifyTradeSLTP(string json)
+{
+    Print("ModifyTrade SL TP called with JSON: ", json);
+    CJAVal jsonObj;
+
+    if (jsonObj.Deserialize(json))
+    {
+         ModifyTradesSLTPByMagicNumber(jsonObj["magicNumber"].ToStr(),jsonObj["SL"].ToDbl(),jsonObj["TP"].ToDbl());
     }
 }
 
@@ -205,7 +220,7 @@ void CloseTradesByMagicNumber(string magicNumber)
     }
 }
 
-void ModifyTradesByMagicNumber(string magicNumber,double SL)
+void ModifyTradesByMagicNumber(string magicNumber,double SL,double TP)
 {
     if (Use_Trailing_SL)
     {
@@ -219,9 +234,33 @@ void ModifyTradesByMagicNumber(string magicNumber,double SL)
                
                if(positionMagicNumber == magicNumber)
                {
-                   if(!trade.PositionModify(m_Position.Ticket(), SL, 0))
+                   if(!trade.PositionModify(m_Position.Ticket(), SL, TP))
                    {
                        Print("Failed to modify position: ", m_Position.Ticket(), " Error: ", GetLastError());
+                   }
+               }
+           }
+       }
+    }    
+}
+
+void ModifyTradesSLTPByMagicNumber(string magicNumber,double SL,double TP)
+{
+    if (Change_Order_When_Master_Change_SL_OR_TP)
+    {
+       int totalPositions = PositionsTotal();
+       
+       for(int i = totalPositions - 1; i >= 0; i--)
+       {
+           if(m_Position.SelectByIndex(i))
+           {
+               ulong positionMagicNumber = PositionGetInteger(POSITION_MAGIC);
+               
+               if(positionMagicNumber == magicNumber)
+               {
+                   if(!trade.PositionModify(m_Position.Ticket(), SL, TP))
+                   {
+                       Print("Failed to modify position SLTP: ", m_Position.Ticket(), " Error: ", GetLastError());
                    }
                }
            }
