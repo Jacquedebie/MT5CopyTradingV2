@@ -1,11 +1,11 @@
 import asyncio
-import datetime
 import json
 import threading
 import time
 import MetaTrader5 as mt5
 import os
 import sqlite3
+import struct
 
 import Meta1 as  mt5_Client_1
 
@@ -39,18 +39,33 @@ accountNotActiveMessage = "Your account is not active. Please contact support. Y
 async def RequestHandler(json_string, writer):
     
     client_id = client_accounts.get(writer, "")
-    
+
     AddCommunication(client_id, json_string)
 
     try:
+        json_data = json.loads(json_string)
+        print("JSON data successfully parsed")
+    except json.JSONDecodeError as e:
+        print(f"JSON decoding failed: {e}")
+        error_position = e.pos
+        snippet = json_string[error_position - 50:error_position + 50]
+        print(f"Problematic JSON snippet: {snippet}")
+    except MemoryError as e:
+        print(f"Memory error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+    try:
+
         json_data = json.loads(json_string)
 
         action = json_data.get('Code')
 
         if action == "TradeStatus":
             TradeStatus(json_data)
-        elif action == "TradeProfit":
-            TradeProfit(client_id,json_data)
+        elif action == "AccountHistory":
+            await AccountHistory(client_id,json_data)
         elif action == "Authenticate":
             await ClientConnected(writer, json_data)  # Ensure to await async function
         elif action == "Ping":
@@ -72,8 +87,19 @@ async def RequestHandler(json_string, writer):
 def TradeStatus(json_data):
     print(json_data)
 
-def TradeProfit(client_id,json_data):
-    InsertTrade(client_id,json_data)
+async def AccountHistory(writer, json_data):
+
+    if isinstance(json_data, str):
+        data = json.loads(json_data)
+    else:
+        data = json_data
+    
+    if "Code" in data and data["Code"] == "AccountHistory":
+
+        tickets = data[""]
+
+        for ticket in tickets:
+            InsertTradeHistory(ticket)
 
 async def ClientConnected(writer, json_data):
     try:
@@ -98,13 +124,34 @@ async def ClientConnected(writer, json_data):
             number_of_rows = len(rows)
 
             if(number_of_rows > 0):
-                #convert rows[0] to bool and check for true or false
+                
                 is_active = bool(rows[0][0])
+
                 if rows[0][0] == 1:
+
                     print("Account already exist",rows[0])
                     messageRequest = {"Code": "Notifications", "message": accountActiveMessage}
                     trade_details_json = json.dumps(messageRequest)
                     await DirectBroadcast(writer,trade_details_json,account_id)
+
+                    # request history for the account
+
+                    today = datetime.today()
+                    yesterday = today - timedelta(days=1)
+                    tomorrow = today + timedelta(days=1)
+
+                    messageRequest = {
+                        "Code": "AccountHistory",
+                        "From": yesterday.strftime("%Y-%m-%d"),
+                        "To": tomorrow.strftime("%Y-%m-%d")
+                    }
+
+                    #messageRequest = {"Code": "AccountHistory", "From": "2024-07-18", "To": "2024-7-21"}
+
+                    trade_details_json = json.dumps(messageRequest)
+                    await DirectBroadcast(writer,trade_details_json,account_id)
+                    #end of history request
+
                     account_status_list.append((account_id, is_active))
                 else:
                     #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
@@ -131,22 +178,27 @@ async def ClientConnected(writer, json_data):
         print("Received data is not valid JSON")
 
 async def handle_client(reader, writer):
-
     addr = writer.get_extra_info('peername')
 
     clients.add(writer)
 
     authenticateRequest = {"Code": "Authenticate"}
-
     writer.write(json.dumps(authenticateRequest).encode('utf-8'))
+    await writer.drain()
 
     try:
         while True:
-            data = await reader.read(2048)
+            length_data = await reader.read(4)
+            if not length_data:
+                break
+
+            message_length = struct.unpack('>I', length_data)[0]
+
+            data = await reader.read(message_length)
             if data:
                 json_received = data.decode('utf-8')
-                
-                await RequestHandler(json_received, writer)  
+
+                await RequestHandler(json_received, writer)
             else:
                 break
     except asyncio.CancelledError:
@@ -172,7 +224,7 @@ async def handle_client(reader, writer):
         except ConnectionResetError:
             pass  
         except OSError:
-            pass 
+            pass
 
 async def broadcast(message):
     
@@ -475,6 +527,54 @@ def AddCommunication(accountNumber, message):
     db_conn.commit()
     db_conn.close()
 
+def InsertTradeHistory(trade_data):
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+
+    trade_ticket = trade_data['Ticket']
+    account_id = trade_data['AccountID']
+
+    position_time = datetime.strptime(trade_data["PositionTime"], "%Y.%m.%d %H:%M")
+    trade_data["PositionTime"] = position_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    db_cursor.execute(
+        "SELECT tbl_trade_ticket FROM tbl_trade WHERE tbl_trade_ticket = ? AND tbl_trade_account = ?", 
+        (trade_ticket, account_id)
+    )
+
+    deal = db_cursor.fetchone()
+
+    if deal is None:
+
+        trade_data_json = {
+            "Ticket": trade_data['Ticket'],
+            "Volume": trade_data['Volume'],
+            "Profit": trade_data['Profit'],
+            "Magic": trade_data['Magic'],
+            "Symbol": trade_data['Symbol'],
+            "PositionTime": trade_data['PositionTime']
+        }
+
+        db_cursor.execute(
+            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed) VALUES (?, ?, ?, ?, ?, ?, ?,?)",
+            (
+                trade_data_json["Ticket"], 
+                trade_data_json["Volume"], 
+                trade_data_json["Profit"], 
+                trade_data_json["Symbol"], 
+                trade_data_json["PositionTime"],
+                account_id,
+                trade_data['Magic'],
+                0
+            )
+        )
+
+        db_conn.commit()
+
+    db_conn.close()
+
 def InsertTrade(client_id, trade_data):
     print(trade_data)
 
@@ -545,13 +645,13 @@ def GetOustandingAccountProfit(accountNumber):
         db_cursor.execute("SELECT SUM(tbl_Transactions_Profit) FROM tbl_Transactions WHERE tbl_Transactions_AccountNumber = ? AND tbl_Transactions_Paid = 0", (accountNumber,))
         rows = db_cursor.fetchall()
         number_of_rows = len(rows)
-        if(number_of_rows > 0):
+        if number_of_rows > 0 and rows[0][0] is not None:
             return format(rows[0][0], ".2f")
         else:
-            return 0
+            return "0.00"
     except sqlite3.Error as error:
         print("Error occurred:", error)
-        return 0
+        return "0.00"
 
 def InsertTradeDetail(accountNumber,trade_data):
     DB_CONNECTION = dbPath
