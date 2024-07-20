@@ -21,6 +21,7 @@ sent_trades = set()
 
 clients = set()
 client_accounts = {}
+tracked_trades = {}  # Dictionary to track the last SL and TP for each trade
 
 account_status_list = []
 
@@ -285,9 +286,6 @@ def check_for_new_trades(loop):
 
 def check_for_modify_trades(loop):
     print("Checking for Modify trades")
-    
-    tracked_trades = {}  # Dictionary to track the last SL and TP for each trade
-
     while True:
         current_time = datetime.now()
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -375,6 +373,9 @@ def check_for_closed_trades(loop):
                 asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
                 db_cursor.execute("DELETE FROM tbl_ActiveTrade WHERE tbl_ActiveTrade_TicketNr = ?", (trade,))
                 db_conn.commit()
+                
+                if trade in tracked_trades:
+                    del tracked_trades[trade]
 
         db_conn.close()
         time.sleep(1)  
