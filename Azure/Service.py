@@ -13,8 +13,8 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-#ADDRESS = "127.0.0.1"
-ADDRESS = "0.0.0.0"
+ADDRESS = "127.0.0.1"
+#ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()
@@ -285,6 +285,8 @@ def check_for_new_trades(loop):
 
 def check_for_modify_trades(loop):
     print("Checking for Modify trades")
+    
+    tracked_trades = {}  # Dictionary to track the last SL and TP for each trade
 
     while True:
         current_time = datetime.now()
@@ -294,7 +296,7 @@ def check_for_modify_trades(loop):
         for tradeMt5 in trades:
             symbol_info = mt5_Client_1.symbol_info(tradeMt5.symbol)
             price = symbol_info.ask
-            #print(f"Profit from Trade {tradeMt5.ticket}: {tradeMt5.profit}")
+            
             if tradeMt5.profit > 0:
                 #print(f"Trade {tradeMt5.ticket} is in profit. Modifying stop loss")
                 current_stop_loss = tradeMt5.sl
@@ -302,11 +304,28 @@ def check_for_modify_trades(loop):
                 #print(f"Current stop loss: {current_stop_loss}, New stop loss: {new_stop_loss}")
                 #if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss):
                 if (tradeMt5.type == mt5.ORDER_TYPE_BUY and new_stop_loss > current_stop_loss and new_stop_loss > tradeMt5.price_open) or (tradeMt5.type == mt5.ORDER_TYPE_SELL and new_stop_loss < current_stop_loss and new_stop_loss < tradeMt5.price_open):
-                    modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss, loop)
+                    modify_position(mt5_Client_1,tradeMt5.ticket, tradeMt5.symbol, new_stop_loss,0, loop)
+                    tracked_trades[tradeMt5.ticket] = (new_stop_loss,0)
 
+            # Track changes in SL and TP
+            if tradeMt5.ticket in tracked_trades:
+                last_sl, last_tp = tracked_trades[tradeMt5.ticket]
+                if last_sl != tradeMt5.sl or last_tp != tradeMt5.tp:
+                    print(f"Trade {tradeMt5.ticket} has SL {last_sl} or TP {last_tp} changed. Modifying trade")
+                    trade_details = {
+                        "Code": "ModifyTradeSLTP",
+                        "Symbol": tradeMt5.symbol,
+                        "SL": tradeMt5.sl,
+                        "TP": tradeMt5.tp,
+                        "magicNumber": tradeMt5.ticket
+                    }
+                    trade_details_json = json.dumps(trade_details)
+                    asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
+            
+            tracked_trades[tradeMt5.ticket] = (tradeMt5.sl, tradeMt5.tp)
         time.sleep(1)  
 
-def modify_position(account,order_number, symbol, new_stop_loss, loop):
+def modify_position(account,order_number, symbol, new_stop_loss,take_Profit, loop):
     # Create the request
     request = {
         "action": mt5_Client_1.TRADE_ACTION_SLTP,
@@ -321,6 +340,7 @@ def modify_position(account,order_number, symbol, new_stop_loss, loop):
             "Code": "ModifyTrade",
             "Symbol": symbol,
             "SL": new_stop_loss,
+            "TP": take_Profit,
             "magicNumber": order_number
         }
         trade_details_json = json.dumps(trade_details)
