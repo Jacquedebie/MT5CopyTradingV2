@@ -134,24 +134,6 @@ async def ClientConnected(writer, json_data):
                     trade_details_json = json.dumps(messageRequest)
                     await DirectBroadcast(writer,trade_details_json,account_id)
 
-                    # request history for the account
-
-                    today = datetime.today()
-                    yesterday = today - timedelta(days=1)
-                    tomorrow = today + timedelta(days=1)
-
-                    messageRequest = {
-                        "Code": "AccountHistory",
-                        "From": yesterday.strftime("%Y-%m-%d"),
-                        "To": tomorrow.strftime("%Y-%m-%d")
-                    }
-
-                    #messageRequest = {"Code": "AccountHistory", "From": "2024-07-18", "To": "2024-7-21"}
-
-                    trade_details_json = json.dumps(messageRequest)
-                    await DirectBroadcast(writer,trade_details_json,account_id)
-                    #end of history request
-
                     account_status_list.append((account_id, is_active))
                 else:
                     #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
@@ -169,6 +151,24 @@ async def ClientConnected(writer, json_data):
             
         except sqlite3.Error as error:
             print("Error occurred:", error)
+
+
+        # request history for the account
+
+        today = datetime.today()
+        yesterday = today - timedelta(days=1)
+        tomorrow = today + timedelta(days=1)
+
+        messageRequest = {
+            "Code": "AccountHistory",
+            "From": yesterday.strftime("%Y-%m-%d"),
+            "To": tomorrow.strftime("%Y-%m-%d")
+        }
+        trade_history_json = json.dumps(messageRequest)
+        await DirectBroadcast(writer,trade_history_json,account_id)
+        
+        #end of history request
+
 
         print(f"[{current_time}] Client Connected :")
         print( client_accounts.values())
