@@ -304,15 +304,18 @@ void AccountHistory(string json)
             for (int i = 0; i < totalDeals; i++)
             {
                 ulong ticket = HistoryDealGetTicket(i);
+                ulong type = HistoryDealGetInteger(ticket,DEAL_TYPE);
                 string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
                 double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
                 double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
                 ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
                 datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+                
                 ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
 
                 CJAVal jsonTrade;
                 jsonTrade["Ticket"] = IntegerToString(ticket);
+                jsonTrade["Type"] = IntegerToString(type);
                 jsonTrade["Symbol"] = symbol;
                 jsonTrade["Profit"] = DoubleToString(profit);
                 jsonTrade["Volume"] = DoubleToString(volume);
@@ -321,6 +324,8 @@ void AccountHistory(string json)
                 jsonTrade["PositionTime"] = TimeToString(positionTime, TIME_DATE | TIME_MINUTES);
 
                 jsonTradesArray.Add(jsonTrade); 
+                
+                positionMagicNumber = 0;
             }
   
             CJAVal finalJson;
@@ -431,7 +436,7 @@ bool HTTPRecv(int socket, uint timeout)
             }
         }
 
-        Sleep(10);
+        Sleep(1);
     }
 
     return StringLen(buffer) > 0;
