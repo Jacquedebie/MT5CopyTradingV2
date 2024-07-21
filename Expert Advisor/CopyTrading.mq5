@@ -352,7 +352,7 @@ bool HTTPSend(int socket, string request)
 
     // Convert the request string to a char array
     int len = StringToCharArray(request, req) - 1;
-    
+
     // Ensure the length is non-negative
     if (len < 0)
         return false;
@@ -376,8 +376,13 @@ bool HTTPSend(int socket, string request)
     for (int i = 0; i < len; i++)
         prefixed_req[4 + i] = req[i];
 
-    // Send the prefixed request
+    // Calculate the total length of the final message
     int total_len = 4 + len;
+
+    // Print the byte size of the final message
+    Print("Byte size of the final message: " + IntegerToString(total_len));
+
+    // Send the prefixed request
     return (ExtTLS ? SocketTlsSend(socket, prefixed_req, total_len) : SocketSend(socket, prefixed_req, total_len)) == total_len;
 }
 
