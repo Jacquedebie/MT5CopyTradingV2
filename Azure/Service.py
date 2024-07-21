@@ -14,8 +14,8 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-ADDRESS = "127.0.0.1"
-#ADDRESS = "0.0.0.0"
+#ADDRESS = "127.0.0.1"
+ADDRESS = "0.0.0.0"
 PORT = 9094
 
 sent_trades = set()
@@ -37,6 +37,9 @@ accountNotActiveMessage = "Your account is not active. Please contact support. Y
 
 #----------------  Websocket Server  ----------------
 
+import json
+from datetime import datetime
+
 async def RequestHandler(json_string, writer):
     
     client_id = client_accounts.get(writer, "")
@@ -45,20 +48,22 @@ async def RequestHandler(json_string, writer):
 
     try:
         json_data = json.loads(json_string)
-
         action = json_data.get('Code')
 
         if action == "TradeStatus":
             TradeStatus(json_data)
         elif action == "AccountHistory":
-            await AccountHistory(client_id,json_data)
+            if(len(json_string) > 50):
+                await AccountHistory(client_id, json_data)
+            else:
+                print("No history returned")
         elif action == "Authenticate":
             await ClientConnected(writer, json_data)  # Ensure to await async function
         elif action == "Ping":
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            #check if Active account
+            # Check if Active account
             if IsAccountActive(client_id):
-                writer.write(json.dumps({"Code": "Notifications","message": accountActiveMessage}).encode('utf-8'))
+                writer.write(json.dumps({"Code": "Notifications", "message": accountActiveMessage}).encode('utf-8'))
                 await writer.drain()
             else:
                 writer.write(json.dumps({"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(client_id)}).encode('utf-8'))
@@ -71,8 +76,24 @@ async def RequestHandler(json_string, writer):
         print(f"Problematic JSON snippet: {snippet}")
     except MemoryError as e:
         print(f"Memory error: {e}")
+    except KeyError as e:
+        print(f"Key error: {e}")
+    except TypeError as e:
+        print(f"Type error: {e}")
+    except ValueError as e:
+        print(f"Value error: {e}")
+    except AttributeError as e:
+        print(f"Attribute error: {e}")
+    except RuntimeError as e:
+        print(f"Runtime error: {e}")
+    except ConnectionError as e:
+        print(f"Connection error: {e}")
+    except IOError as e:
+        print(f"I/O error: {e}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        print(f"Error details: {json_data}")
+
 
 def TradeStatus(json_data):
     print(json_data)
@@ -730,16 +751,13 @@ async def daily_Billing():
                             "From": yesterday.strftime("%Y-%m-%d"),
                             "To": tomorrow.strftime("%Y-%m-%d")
                         }
-
-                        print(f"Sending billing request for account {account} for date {day_str}")
-                        print(messageRequest)
                         
                         trade_history_json = json.dumps(messageRequest)
                         client.write(trade_history_json.encode('utf-8'))
                         AddCommunication(str(account), trade_history_json)
 
                         await client.drain()
-                        print(f"Billing request sent to account: {account}")
+                        print(f"Billing request sent to account: {account} for params: {messageRequest}")
                         await asyncio.sleep(5)  
                 else:
                     print(f"Invalid client or client.write is None for account: {account}")
@@ -755,7 +773,7 @@ def setup_scheduler():
     print("Setting up scheduler")
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_Billing, 'cron', hour=00, minute=00)
+    scheduler.add_job(daily_Billing, 'cron', hour=0, minute=0)
     scheduler.start()
 
 
