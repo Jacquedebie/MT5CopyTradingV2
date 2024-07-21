@@ -104,13 +104,27 @@ async def AccountHistory(writer, json_data):
         data = json.loads(json_data)
     else:
         data = json_data
-    
+
     if "Code" in data and data["Code"] == "AccountHistory":
 
-        tickets = data[""]
+        trades = data["Trades"]
 
-        for ticket in tickets:
-            InsertTradeHistory(ticket)
+        # Iterate over each trade and build JSON object for each trade to insert
+        for trade in trades:
+            # Build trade data JSON
+            trade_data = {
+                "Ticket": trade['Ticket'],
+                "Type": trade['Type'],
+                "Symbol": trade['Symbol'],
+                "Profit": trade['Profit'],
+                "Volume": trade['Volume'],
+                "AccountID": trade['AccountID'],
+                "Magic": trade['Magic'],
+                "PositionTime": trade['PositionTime']
+            }
+            
+            InsertTradeHistory(trade_data)
+
 
 async def ClientConnected(writer, json_data):
     try:
@@ -173,7 +187,8 @@ async def ClientConnected(writer, json_data):
         messageRequest = {
             "Code": "AccountHistory",
             "From": yesterday.strftime("%Y-%m-%d"),
-            "To": tomorrow.strftime("%Y-%m-%d")
+            "To": tomorrow.strftime("%Y-%m-%d"),
+            "TradesIncluded" : 15
         }
         trade_history_json = json.dumps(messageRequest)
         await DirectBroadcast(writer,trade_history_json,account_id)
@@ -749,7 +764,8 @@ async def daily_Billing():
                         messageRequest = {
                             "Code": "AccountHistory",
                             "From": yesterday.strftime("%Y-%m-%d"),
-                            "To": tomorrow.strftime("%Y-%m-%d")
+                            "To": tomorrow.strftime("%Y-%m-%d"),
+                            "TradesIncluded" : 15
                         }
                         
                         trade_history_json = json.dumps(messageRequest)
@@ -773,7 +789,7 @@ def setup_scheduler():
     print("Setting up scheduler")
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_Billing, 'cron', hour=0, minute=0)
+    scheduler.add_job(daily_Billing, 'cron', hour=13, minute=5)
     scheduler.start()
 
 
