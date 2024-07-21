@@ -62,6 +62,7 @@ void RequestHandler(string json)
         }
         else if (jsCode == "AccountHistory")
         {
+            Print("History Requested");
             AccountHistory(json);
         }
         else
@@ -304,7 +305,7 @@ void AccountHistory(string json)
             for (int i = 0; i < totalDeals; i++)
             {
                 ulong ticket = HistoryDealGetTicket(i);
-                ulong type = HistoryDealGetInteger(ticket,DEAL_TYPE);
+                ulong type = HistoryDealGetInteger(ticket, DEAL_TYPE);
                 string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
                 double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
                 double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
@@ -336,7 +337,7 @@ void AccountHistory(string json)
             string finalJsonStr = finalJson.Serialize();
             
             HTTPSend(socket, finalJsonStr); 
-
+            //Print("Sent JSON to server: " + finalJsonStr);  // Debugging line
             
         }
         else
