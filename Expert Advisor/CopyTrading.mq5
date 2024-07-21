@@ -136,21 +136,7 @@ void OpenTrade(string json)
          {
              Print("Trade execution failed: ", trade.ResultRetcode(), " - ", trade.ResultRetcodeDescription());
          }
-         else
-         {
-             CJAVal authenticateObj;
-             authenticateObj["Code"] = "TradeStatus";
-             authenticateObj["Ticket"] = IntegerToString(trade.ResultOrder());
-             authenticateObj["Magic"] = magicNumber;
-             authenticateObj["Symbol"] = symbol;
-             authenticateObj["Type"] = IntegerToString(orderType);
-             authenticateObj["Volume"] = DoubleToString(volume);
-             authenticateObj["Comment"] = comment;
-             
-             string authenticateResponse = authenticateObj.Serialize();
-         
-             HTTPSend(socket, authenticateResponse); 
-         }
+
     }
     else
     {
@@ -285,60 +271,64 @@ void Notification(string json)
 void AccountHistory(string json)
 {
     Print("Account History Requested");
+    Print(json);
 
     CJAVal jsonObj;
 
     if (jsonObj.Deserialize(json))
     {
         string dateFromStr = jsonObj["From"].ToStr();
-        string dateToStr = jsonObj["To"].ToStr();
-
+        string dateToStr = jsonObj["To"].ToStr();        
+        int tradesIncluded = jsonObj["TradesIncluded"].ToInt();
+         
         datetime DateFrom = StringToTime(dateFromStr);
         datetime DateTo = StringToTime(dateToStr);
 
         if (HistorySelect(DateFrom, DateTo))
         {
             int totalDeals = HistoryDealsTotal();
-            CJAVal jsonTradesArray;
-            jsonTradesArray.Clear();
+            int maxTradesPerBatch = tradesIncluded;
+            int totalBatches = (totalDeals + maxTradesPerBatch - 1) / maxTradesPerBatch;
 
-            for (int i = 0; i < totalDeals; i++)
+            for (int batch = 0; batch < totalBatches; batch++)
             {
-                ulong ticket = HistoryDealGetTicket(i);
-                ulong type = HistoryDealGetInteger(ticket, DEAL_TYPE);
-                string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
-                double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
-                double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
-                ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
-                datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
-                
-                ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+                string jsonTradesArray = "[";
+                int start = batch * maxTradesPerBatch;
+                int end = MathMin(start + maxTradesPerBatch, totalDeals);
 
-                CJAVal jsonTrade;
-                jsonTrade["Ticket"] = IntegerToString(ticket);
-                jsonTrade["Type"] = IntegerToString(type);
-                jsonTrade["Symbol"] = symbol;
-                jsonTrade["Profit"] = DoubleToString(profit);
-                jsonTrade["Volume"] = DoubleToString(volume);
-                jsonTrade["AccountID"] = IntegerToString(accountID);
-                jsonTrade["Magic"] = IntegerToString(positionMagicNumber);
-                jsonTrade["PositionTime"] = TimeToString(positionTime, TIME_DATE | TIME_MINUTES);
+                for (int i = start; i < end; i++)
+                {
+                    ulong ticket = HistoryDealGetTicket(i);
+                    ulong type = HistoryDealGetInteger(ticket, DEAL_TYPE);
+                    string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
+                    double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
+                    double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+                    ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
+                    datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+                    ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
 
-                jsonTradesArray.Add(jsonTrade); 
-                
-                positionMagicNumber = 0;
+                    if (i > start)
+                        jsonTradesArray += ",";
+
+                    jsonTradesArray += "{\"Ticket\":\"" + IntegerToString(ticket) + "\",";
+                    jsonTradesArray += "\"Type\":\"" + IntegerToString(type) + "\",";
+                    jsonTradesArray += "\"Symbol\":\"" + symbol + "\",";
+                    jsonTradesArray += "\"Profit\":\"" + DoubleToString(profit) + "\",";
+                    jsonTradesArray += "\"Volume\":\"" + DoubleToString(volume) + "\",";
+                    jsonTradesArray += "\"AccountID\":\"" + IntegerToString(accountID) + "\",";
+                    jsonTradesArray += "\"Magic\":\"" + IntegerToString(positionMagicNumber) + "\",";
+                    jsonTradesArray += "\"PositionTime\":\"" + TimeToString(positionTime, TIME_DATE | TIME_MINUTES) + "\"}";
+                }
+
+                jsonTradesArray += "]";
+
+                string finalJsonStr = "{\"Code\":\"AccountHistory\",\"Trades\":" + jsonTradesArray + "}";
+
+                HTTPSend(socket, finalJsonStr);
+                Print("Sent JSON to server: " + finalJsonStr);
+
+                Sleep(50); 
             }
-  
-            CJAVal finalJson;
-            
-            finalJson["Code"] = "AccountHistory"; 
-            finalJson["Trades"] = jsonTradesArray;
-
-            string finalJsonStr = finalJson.Serialize();
-            
-            HTTPSend(socket, finalJsonStr); 
-            //Print("Sent JSON to server: " + finalJsonStr);  // Debugging line
-            
         }
         else
         {
@@ -350,6 +340,8 @@ void AccountHistory(string json)
         Print("Failed to deserialize JSON");
     }
 }
+
+
 
 
 
