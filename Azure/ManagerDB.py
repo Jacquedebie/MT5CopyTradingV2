@@ -8,6 +8,8 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 db_path = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+PROFIT_SHARE_PERCENTAGE = 0.30
+
 # Initialize Database Connection
 def init_db():
     conn = sqlite3.connect(db_path)
@@ -38,7 +40,9 @@ def init_db():
                   tbl_trade_profit REAL NOT NULL,
                   tbl_trade_symbol TEXT NOT NULL,
                   tbl_trade_billed INTEGER NOT NULL,
-                  tbl_trade_time TEXT NOT NULL)''')
+                  tbl_trade_time TEXT NOT NULL,
+                  tbl_trade_type INTEGER NOT NULL,
+                  tbl_trade_swap REAL NOT NULL)''')
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_Communication
                  (pk_tbl_Communication INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_Communication_AccountNumber INTEGER NOT NULL,
@@ -52,6 +56,7 @@ def init_db():
                   tbl_Transactions_DateTo TEXT NOT NULL,
                   tbl_Transactions_TradeCount INTEGER NOT NULL,
                   tbl_Transactions_Profit REAL NOT NULL,
+                  tbl_Transactions_ProfitShare REAL NOT NULL,
                   tbl_Transactions_Paid BOOLEAN NOT NULL DEFAULT 0)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_TradeTransaction
@@ -297,7 +302,9 @@ tables = {
         'tbl_trade_profit': 'Profit',
         'tbl_trade_symbol': 'Symbol',
         'tbl_trade_billed': 'Billed',
-        'tbl_trade_time': 'Time'
+        'tbl_trade_time': 'Time',
+        'tbl_trade_type': 'Type',
+        'tbl_trade_swap': 'Swap'
     }),
     'tbl_Communication': ('pk_tbl_Communication', {
         'tbl_Communication_AccountNumber': 'Account Number',
@@ -313,6 +320,7 @@ tables = {
         'tbl_Transactions_DateTo': 'Date To',
         'tbl_Transactions_TradeCount': 'Trade Count',
         'tbl_Transactions_Profit': 'Profit',
+        'tbl_Transactions_ProfitShare' : 'Profit Share',
         'tbl_Transactions_Paid': 'Paid'
     })
 }
@@ -355,6 +363,11 @@ for table, (pk, columns) in tables.items():
         
         # Add a button under the grid for additional functionality
         ttk.Button(frame, text="Run Trades For The Week", command=lambda: RunTradeForTheWeek()).grid(row=len(columns) + 2, column=0, padx=5, pady=5)
+        
+        # Add Archive Clients checkbox
+        archive_var = tk.IntVar()
+        archive_checkbox = ttk.Checkbutton(frame, text="Archive Clients", variable=archive_var)
+        archive_checkbox.grid(row=len(columns) + 3, column=0, padx=5, pady=5)
 
     elif table == 'tbl_trade' or table == 'tbl_Communication':
         # Search functionality for tbl_trade and tbl_Communication
@@ -374,6 +387,25 @@ for table, (pk, columns) in tables.items():
     tree = ttk.Treeview(frame, columns=cols, show='headings')
     for col in cols:
         tree.heading(col, text=col, command=lambda _col=col: sort_column(tree, _col, False))
+    
+    # Set column widths for 'All Trades' tab
+    if table == 'tbl_trade':
+        column_widths = {
+            'pk_tbl_trade': 50,
+            'tbl_trade_account': 100,
+            'tbl_trade_ticket': 100,
+            'tbl_trade_magic': 100,
+            'tbl_trade_volume': 80,
+            'tbl_trade_profit': 80,
+            'tbl_trade_symbol': 80,
+            'tbl_trade_billed': 80,
+            'tbl_trade_time': 120,
+            'tbl_trade_type': 80,
+            'tbl_trade_swap': 80
+        }
+        for col, width in column_widths.items():
+            tree.column(col, width=width)
+    
     tree.grid(row=len(columns) + 1, column=0, columnspan=5, padx=5, pady=5)
     tree.bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
 
@@ -415,6 +447,8 @@ ttk.Button(filter_frame, text="Search User", command=lambda: search_users()).gri
 account_tree = ttk.Treeview(filter_frame, columns=["tbl_account_name", "tbl_account_id"], show='headings')
 account_tree.heading("tbl_account_name", text="Account Name", command=lambda: sort_column_account(account_tree, "tbl_account_name", False))
 account_tree.heading("tbl_account_id", text="Account ID", command=lambda: sort_column_account(account_tree, "tbl_account_id", False))
+account_tree.column("tbl_account_name", width=100)
+account_tree.column("tbl_account_id", width=100)
 account_tree.grid(row=1, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
 account_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "account"))
 
@@ -427,6 +461,9 @@ user_tree = ttk.Treeview(filter_frame, columns=["tbl_user_name", "tbl_user_email
 user_tree.heading("tbl_user_name", text="User Name", command=lambda: sort_column_user(user_tree, "tbl_user_name", False))
 user_tree.heading("tbl_user_email", text="User Email", command=lambda: sort_column_user(user_tree, "tbl_user_email", False))
 user_tree.heading("tbl_user_AccountNumber", text="Account Number", command=lambda: sort_column_user(user_tree, "tbl_user_AccountNumber", False))
+user_tree.column("tbl_user_name", width=100)
+user_tree.column("tbl_user_email", width=100)
+user_tree.column("tbl_user_AccountNumber", width=100)
 user_tree.grid(row=1, column=6, columnspan=5, padx=5, pady=5, sticky="nsew")
 user_tree.bind("<ButtonRelease-1>", lambda event: handle_selection(event, "user"))
 
@@ -434,10 +471,33 @@ user_vsb = ttk.Scrollbar(filter_frame, orient="vertical", command=user_tree.yvie
 user_tree.configure(yscrollcommand=user_vsb.set)
 user_vsb.grid(row=1, column=11, sticky="ns")
 
+# # Treeview for tbl_trade
+# trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time","tbl_trade_type" , "tbl_trade_swap" ], show='headings')
+# for col in ["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time","tbl_trade_type" , "tbl_trade_swap"]:
+#     trade_tree.heading(col, text=col, command=lambda _col=col: sort_column_trade(trade_tree, _col, False))
+# trade_tree.grid(row=2, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 # Treeview for tbl_trade
-trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"], show='headings')
-for col in ["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time"]:
+trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time", "tbl_trade_type", "tbl_trade_swap"], show='headings')
+
+# Set column widths
+column_widths = {
+    "pk_tbl_trade": 50,
+    "tbl_trade_account": 100,
+    "tbl_trade_ticket": 100,
+    "tbl_trade_magic": 100,
+    "tbl_trade_volume": 80,
+    "tbl_trade_profit": 80,
+    "tbl_trade_symbol": 80,
+    "tbl_trade_billed": 80,
+    "tbl_trade_time": 120,
+    "tbl_trade_type": 80,
+    "tbl_trade_swap": 80
+}
+
+for col, width in column_widths.items():
     trade_tree.heading(col, text=col, command=lambda _col=col: sort_column_trade(trade_tree, _col, False))
+    trade_tree.column(col, width=width)
+
 trade_tree.grid(row=2, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
 trade_vsb = ttk.Scrollbar(filter_frame, orient="vertical", command=trade_tree.yview)
@@ -445,8 +505,8 @@ trade_tree.configure(yscrollcommand=trade_vsb.set)
 trade_vsb.grid(row=2, column=11, sticky="ns")
 
 # Treeview for tbl_Transactions
-transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"], show='headings')
-for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"]:
+transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"], show='headings')
+for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"]:
     transactions_tree.heading(col, text=col, command=lambda _col=col: sort_column_transactions(transactions_tree, _col, False))
 transactions_tree.grid(row=3, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
@@ -543,7 +603,7 @@ def RunTradeForTheWeek():
                     SELECT
                         tbl_trade_account AS account_number,
                         COUNT(*) AS total_trades,
-                        SUM(tbl_trade_profit) AS total_profit
+                        ROUND(SUM(tbl_trade_profit) + SUM(COALESCE(tbl_trade_swap, 0)), 2) AS total_profit
                     FROM
                         tbl_trade
                     WHERE
@@ -558,6 +618,10 @@ def RunTradeForTheWeek():
 
             # Insert or update the summary records in tbl_Transactions
             for account_number, total_trades, total_profit in trade_summaries:
+                total_profit_share = round(total_profit * PROFIT_SHARE_PERCENTAGE, 2)
+                if total_profit_share < 0:
+                    total_profit_share = 0
+
                 c.execute('''
                     SELECT pk_tbl_Transactions FROM tbl_Transactions
                     WHERE tbl_Transactions_AccountNumber = ?
@@ -572,9 +636,10 @@ def RunTradeForTheWeek():
                     c.execute('''
                         UPDATE tbl_Transactions
                         SET tbl_Transactions_TradeCount = tbl_Transactions_TradeCount + ?,
-                            tbl_Transactions_Profit = tbl_Transactions_Profit + ?
+                            tbl_Transactions_Profit = tbl_Transactions_Profit + ?,
+                            tbl_Transactions_ProfitShare = tbl_Transactions_ProfitShare + ?
                         WHERE pk_tbl_Transactions = ?
-                    ''', (total_trades, total_profit, transaction_id))
+                    ''', (total_trades, total_profit, total_profit_share, transaction_id))
                 else:
                     # Insert a new record
                     c.execute('''
@@ -584,10 +649,11 @@ def RunTradeForTheWeek():
                             tbl_Transactions_DateTo,
                             tbl_Transactions_TradeCount,
                             tbl_Transactions_Profit,
+                            tbl_Transactions_ProfitShare,
                             tbl_Transactions_Paid
                         )
-                        VALUES (?, ?, ?, ?, ?, 0)
-                    ''', (account_number, current_start_date, current_end_date, total_trades, total_profit))
+                        VALUES (?, ?, ?, ?, ?, ?, 0)
+                    ''', (account_number, current_start_date, current_end_date, total_trades, total_profit, total_profit_share))
                     transaction_id = c.lastrowid
 
                 # Insert records into tbl_TradeTransaction for each account
@@ -607,13 +673,14 @@ def RunTradeForTheWeek():
                         AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
                 ''', (transaction_id, account_number, current_start_date, current_end_date))
 
-            # Update tbl_user by setting tbl_user_Active to 0 for users with the same tbl_account_id as tbl_Transactions_AccountNumber
-            for account_number, _, _ in trade_summaries:
-                c.execute('''
-                    UPDATE tbl_user
-                    SET tbl_user_Active = 0
-                    WHERE tbl_user_AccountNumber = ?
-                ''', (account_number,))
+            # Archive clients if checkbox is checked
+            if archive_var.get():
+                for account_number, _, _ in trade_summaries:
+                    c.execute('''
+                        UPDATE tbl_user
+                        SET tbl_user_Active = 0
+                        WHERE tbl_user_AccountNumber = ?
+                    ''', (account_number,))
 
             # Move to the next week
             current_start_date += datetime.timedelta(days=7)

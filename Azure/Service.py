@@ -789,7 +789,8 @@ def setup_scheduler():
     print("Setting up scheduler")
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_Billing, 'cron', hour=13, minute=5)
+    scheduler.add_job(daily_Billing, 'cron', hour=14, minute=25) #daily at 00:00
+    #scheduler.add_job(daily_Billing, 'cron', minute=0) # each hour for testing
     scheduler.start()
 
 
