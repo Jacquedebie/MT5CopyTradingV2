@@ -306,6 +306,7 @@ void AccountHistory(string json)
                     ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
                     datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
                     ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+                    double swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
 
                     if (i > start)
                         jsonTradesArray += ",";
@@ -317,6 +318,7 @@ void AccountHistory(string json)
                     jsonTradesArray += "\"Volume\":\"" + DoubleToString(volume) + "\",";
                     jsonTradesArray += "\"AccountID\":\"" + IntegerToString(accountID) + "\",";
                     jsonTradesArray += "\"Magic\":\"" + IntegerToString(positionMagicNumber) + "\",";
+                    jsonTradesArray += "\"Swap\":\"" + DoubleToString(swap) + "\",";
                     jsonTradesArray += "\"PositionTime\":\"" + TimeToString(positionTime, TIME_DATE | TIME_MINUTES) + "\"}";
                 }
 

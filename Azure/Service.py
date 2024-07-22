@@ -14,8 +14,14 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-#ADDRESS = "127.0.0.1"
-ADDRESS = "0.0.0.0"
+debug = False
+
+if(debug):
+    ADDRESS = "127.0.0.1"
+else:
+    ADDRESS = "0.0.0.0"
+
+
 PORT = 9094
 
 sent_trades = set()
@@ -120,7 +126,8 @@ async def AccountHistory(writer, json_data):
                 "Volume": trade['Volume'],
                 "AccountID": trade['AccountID'],
                 "Magic": trade['Magic'],
-                "PositionTime": trade['PositionTime']
+                "PositionTime": trade['PositionTime'],
+                "Swap": trade['Swap']
             }
             
             InsertTradeHistory(trade_data)
@@ -181,17 +188,22 @@ async def ClientConnected(writer, json_data):
         # request history for the account
 
         today = datetime.today()
-        yesterday = today - timedelta(days=2)
-        tomorrow = today + timedelta(days=2)
+        seven_days_ago = today - timedelta(days=7)
+        tomorrow = today + timedelta(days=1)
 
         messageRequest = {
             "Code": "AccountHistory",
-            "From": yesterday.strftime("%Y-%m-%d"),
+            "From": seven_days_ago.strftime("%Y-%m-%d"),
             "To": tomorrow.strftime("%Y-%m-%d"),
-            "TradesIncluded" : 15
+            "TradesIncluded": 15
         }
+
         trade_history_json = json.dumps(messageRequest)
-        await DirectBroadcast(writer,trade_history_json,account_id)
+
+        if(debug):
+            print(f"Requesting history for account {account_id} from {seven_days_ago} to {tomorrow}")
+
+        await DirectBroadcast(writer, trade_history_json, account_id)
         
         #end of history request
 
@@ -581,11 +593,12 @@ def InsertTradeHistory(trade_data):
             "Magic": trade_data['Magic'],
             "Symbol": trade_data['Symbol'],
             "PositionTime": trade_data['PositionTime'],
-            "Type": trade_data['Type']
+            "Type": trade_data['Type'],
+            "Swap": trade_data['Swap']
         }
 
         db_cursor.execute(
-            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed,tbl_trade_type) VALUES (?, ?, ?, ?, ?, ?, ?,?,?)",
+            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed,tbl_trade_type,tbl_trade_swap) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?)",
             (
                 trade_data_json["Ticket"], 
                 trade_data_json["Volume"], 
@@ -595,7 +608,8 @@ def InsertTradeHistory(trade_data):
                 account_id,
                 trade_data['Magic'],
                 0,
-                trade_data_json["Type"]
+                trade_data_json["Type"],
+                trade_data_json["Swap"]
             )
         )
 
