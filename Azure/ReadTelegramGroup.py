@@ -73,7 +73,8 @@ groups_info = {
 }
 
 # List of symbols to look for
-symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'BTCUSD','USDCAD']  # Add more symbols as needed
+symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD']  # Add more symbols as needed
+#'BTCUSD', spread is te hoog
 
 # Dictionary to track counts and timestamps
 trade_tracker = {}
@@ -205,6 +206,10 @@ async def process_all_group_messages(start_date, session):
                                 sl = sl_line[0].split(':')[-1].strip() if sl_line else None
                                 sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
+                                # Remove any leading periods
+                                if sl and sl.startswith('.'):
+                                    sl = sl[1:]
+                                    
                                 tp_lines = [line for line in text.split('\n') if 'TP' in line]
                                 tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
                                 return trade_type, symbol, sl, tps, price
