@@ -211,7 +211,10 @@ async def process_all_group_messages(start_date, session):
                                     sl = sl[1:]
                                     
                                 tp_lines = [line for line in text.split('\n') if 'TP' in line]
-                                tps = [re.sub(r'[^\d.]', '', line.split(':')[-1].strip()) for line in tp_lines]  # Keep only numeric characters and dot
+                                tps = [
+                                    re.sub(r'^\.', '', re.sub(r'[^\d.]', '', line.split(':')[-1].strip()))
+                                    for line in tp_lines
+                                ]
                                 return trade_type, symbol, sl, tps, price
 
                             async def parse_and_send_messages(message_text):
