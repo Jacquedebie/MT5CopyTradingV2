@@ -599,7 +599,7 @@ def RunTradeForTheWeek():
                     SELECT
                         tbl_trade_account AS account_number,
                         COUNT(*) AS total_trades,
-                        SUM(tbl_trade_profit) + SUM(COALESCE(tbl_trade_swap, 0)) AS total_profit
+                        ROUND(SUM(tbl_trade_profit) + SUM(COALESCE(tbl_trade_swap, 0)), 2) AS total_profit
                     FROM
                         tbl_trade
                     WHERE
