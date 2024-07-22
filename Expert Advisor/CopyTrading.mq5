@@ -306,6 +306,7 @@ void AccountHistory(string json)
                     ulong accountID = AccountInfoInteger(ACCOUNT_LOGIN);
                     datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
                     ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
+                    double swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
 
                     if (i > start)
                         jsonTradesArray += ",";
@@ -317,6 +318,7 @@ void AccountHistory(string json)
                     jsonTradesArray += "\"Volume\":\"" + DoubleToString(volume) + "\",";
                     jsonTradesArray += "\"AccountID\":\"" + IntegerToString(accountID) + "\",";
                     jsonTradesArray += "\"Magic\":\"" + IntegerToString(positionMagicNumber) + "\",";
+                    jsonTradesArray += "\"Swap\":\"" + DoubleToString(swap) + "\",";
                     jsonTradesArray += "\"PositionTime\":\"" + TimeToString(positionTime, TIME_DATE | TIME_MINUTES) + "\"}";
                 }
 
@@ -352,7 +354,7 @@ bool HTTPSend(int socket, string request)
 
     // Convert the request string to a char array
     int len = StringToCharArray(request, req) - 1;
-    
+
     // Ensure the length is non-negative
     if (len < 0)
         return false;
@@ -376,8 +378,13 @@ bool HTTPSend(int socket, string request)
     for (int i = 0; i < len; i++)
         prefixed_req[4 + i] = req[i];
 
-    // Send the prefixed request
+    // Calculate the total length of the final message
     int total_len = 4 + len;
+
+    // Print the byte size of the final message
+    Print("Byte size of the final message: " + IntegerToString(total_len));
+
+    // Send the prefixed request
     return (ExtTLS ? SocketTlsSend(socket, prefixed_req, total_len) : SocketSend(socket, prefixed_req, total_len)) == total_len;
 }
 
