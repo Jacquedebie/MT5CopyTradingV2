@@ -8,6 +8,8 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 db_path = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+PROFIT_SHARE_PERCENTAGE = 0.30
+
 # Initialize Database Connection
 def init_db():
     conn = sqlite3.connect(db_path)
@@ -54,6 +56,7 @@ def init_db():
                   tbl_Transactions_DateTo TEXT NOT NULL,
                   tbl_Transactions_TradeCount INTEGER NOT NULL,
                   tbl_Transactions_Profit REAL NOT NULL,
+                  tbl_Transactions_ProfitShare REAL NOT NULL,
                   tbl_Transactions_Paid BOOLEAN NOT NULL DEFAULT 0)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_TradeTransaction
@@ -317,6 +320,7 @@ tables = {
         'tbl_Transactions_DateTo': 'Date To',
         'tbl_Transactions_TradeCount': 'Trade Count',
         'tbl_Transactions_Profit': 'Profit',
+        'tbl_Transactions_ProfitShare' : 'Profit Share',
         'tbl_Transactions_Paid': 'Paid'
     })
 }
@@ -501,8 +505,8 @@ trade_tree.configure(yscrollcommand=trade_vsb.set)
 trade_vsb.grid(row=2, column=11, sticky="ns")
 
 # Treeview for tbl_Transactions
-transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"], show='headings')
-for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_Paid"]:
+transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"], show='headings')
+for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"]:
     transactions_tree.heading(col, text=col, command=lambda _col=col: sort_column_transactions(transactions_tree, _col, False))
 transactions_tree.grid(row=3, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
@@ -614,6 +618,10 @@ def RunTradeForTheWeek():
 
             # Insert or update the summary records in tbl_Transactions
             for account_number, total_trades, total_profit in trade_summaries:
+                total_profit_share = round(total_profit * PROFIT_SHARE_PERCENTAGE, 2)
+                if total_profit_share < 0:
+                    total_profit_share = 0
+
                 c.execute('''
                     SELECT pk_tbl_Transactions FROM tbl_Transactions
                     WHERE tbl_Transactions_AccountNumber = ?
@@ -628,9 +636,10 @@ def RunTradeForTheWeek():
                     c.execute('''
                         UPDATE tbl_Transactions
                         SET tbl_Transactions_TradeCount = tbl_Transactions_TradeCount + ?,
-                            tbl_Transactions_Profit = tbl_Transactions_Profit + ?
+                            tbl_Transactions_Profit = tbl_Transactions_Profit + ?,
+                            tbl_Transactions_ProfitShare = tbl_Transactions_ProfitShare + ?
                         WHERE pk_tbl_Transactions = ?
-                    ''', (total_trades, total_profit, transaction_id))
+                    ''', (total_trades, total_profit, total_profit_share, transaction_id))
                 else:
                     # Insert a new record
                     c.execute('''
@@ -640,10 +649,11 @@ def RunTradeForTheWeek():
                             tbl_Transactions_DateTo,
                             tbl_Transactions_TradeCount,
                             tbl_Transactions_Profit,
+                            tbl_Transactions_ProfitShare,
                             tbl_Transactions_Paid
                         )
-                        VALUES (?, ?, ?, ?, ?, 0)
-                    ''', (account_number, current_start_date, current_end_date, total_trades, total_profit))
+                        VALUES (?, ?, ?, ?, ?, ?, 0)
+                    ''', (account_number, current_start_date, current_end_date, total_trades, total_profit, total_profit_share))
                     transaction_id = c.lastrowid
 
                 # Insert records into tbl_TradeTransaction for each account
