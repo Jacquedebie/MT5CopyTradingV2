@@ -97,6 +97,6 @@ SELECT
 FROM 
     detailed_profits
 WHERE 
-    win_loss_ratio BETWEEN -0.3 AND 0 AND total_profit < 0
+    (win_loss_ratio BETWEEN -0.3 AND 0) OR (total_profit < 0) OR (profitable_days < non_profitable_days)
 ORDER BY 
     win_loss_ratio DESC;
