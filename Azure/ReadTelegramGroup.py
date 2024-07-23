@@ -10,6 +10,11 @@ import re
 import sqlite3
 from datetime import datetime, timezone, timedelta
 
+PATH = os.path.abspath(__file__)
+DIRECTORY = os.path.dirname(os.path.dirname(PATH))
+dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
+
+
 # Your api_id and api_hash from my.telegram.org
 api_id = '21789309'
 api_hash = '25cfde9a425a3658172d011e45e81a2c'
@@ -26,51 +31,53 @@ sameSignalCount = 5  # Number of same signals before placing a trade
 # Create the client and connect
 client = TelegramClient('session_name', api_id, api_hash)
 
+
+groups_info = {}
 # Dictionary to maintain group names and their corresponding magic numbers
-groups_info = {
-    'JDB Copy Trading Counter': 2784583071,
-    'Gold Scalper Ninja': 2784583072,
-    'FABIO VIP SQUAD': 2784583073,
-    'THE FOREX BOAR 🚀': 2784583074,
-    'JDB Copy Signals': 2784583075,
-    'JDB Copy Signals2': 2784583076,
-    'JDB Copy Signals3': 2784583077,
-    'JDB Copy Signals4': 2784583078,
-    '‎سيد تجارة الفوركس': 2784583079,
-    'GOLD FATHER CHRIS': 2784583080,
-    '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583081,
-    '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583082,
-    '𝘼𝙇𝙀𝙓 𝙓𝘼𝙐𝙐𝙎𝘿 𝘾𝙃𝘼𝙎𝙀𝙍 ➤': 2784583083,
-    'FOREX EMPIRE': 2784583084,
-    'GBPUSD+USDJPY(GOLD) SIGNALS': 2784583085,
-    'Loi\'s Gold TradingRoom': 2784583086,
-    'DENMARKPFOREX': 2784583087,
-    'Gold Snipers Fx - Free Gold Signals': 2784583088,
-    '𝐆𝐎𝐋𝐃 𝐓𝐑𝐀𝐃𝐈𝐍𝐆 𝐀𝐂𝐀𝐃𝐄𝐌𝐘': 2784583089,
-    'Forex Scalping Strategy 📈': 2784583090,
-    'Mr Beast Gold': 2784583091,
-    'Areval Forex™': 2784583092,
-    'FX UNIQUE TRADE 😍😍😍': 2784583093,
-    '🍀KING GOLD FOREX🍀🍀': 2784583094,
-    'King Of Gold⚡️': 2784583095,
-    'GOLD MASTER': 2784583096,
-    'FOREX TRADING SIGNAL(free)': 2784583097,
-    'XAUUSD GBPUSD': 2784583098,
-    'Chef Hazzim Scalping Maut🏆': 2784583099,
-    'Exnees account manager': 2784583100,
-    '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583101,
-    'MXGOLDTRADE': 2784583102,
-    'FOREX CHAMPION': 2784583103,
-    'Forex Signals🔥💰 XAUUSD': 2784583104,
-    '🔰PREMIUM Fx Signals💯': 2784583105,
-    '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583106,
-    'Daily Forex Signals': 2784583107,
-    'APEX BULL FO®EX SIGNALS (free)': 2784583108,
-    'Barclays Forex®': 2784583109,
-    'GOLD FX SIGNALS': 2784583110,
-    '𝐂𝐀𝐏𝐓𝐀𝐈𝐍 𝐅𝐎𝐑𝐄𝐗 𝐓𝐑𝐀𝐃𝐈𝐍𝐆': 2784583111,
-    'Gold signal killer pips': 2784583112
-}
+# groups_info = {
+#     'JDB Copy Trading Counter': 2784583071,
+#     'Gold Scalper Ninja': 2784583072,
+#     'FABIO VIP SQUAD': 2784583073,
+#     'THE FOREX BOAR 🚀': 2784583074,
+#     'JDB Copy Signals': 2784583075,
+#     'JDB Copy Signals2': 2784583076,
+#     'JDB Copy Signals3': 2784583077,
+#     'JDB Copy Signals4': 2784583078,
+#     '‎سيد تجارة الفوركس': 2784583079,
+#     'GOLD FATHER CHRIS': 2784583080,
+#     '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583081,
+#     '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583082,
+#     '𝘼𝙇𝙀𝙓 𝙓𝘼𝙐𝙐𝙎𝘿 𝘾𝙃𝘼𝙎𝙀𝙍 ➤': 2784583083,
+#     'FOREX EMPIRE': 2784583084,
+#     'GBPUSD+USDJPY(GOLD) SIGNALS': 2784583085,
+#     'Loi\'s Gold TradingRoom': 2784583086,
+#     'DENMARKPFOREX': 2784583087,
+#     'Gold Snipers Fx - Free Gold Signals': 2784583088,
+#     '𝐆𝐎𝐋𝐃 𝐓𝐑𝐀𝐃𝐈𝐍𝐆 𝐀𝐂𝐀𝐃𝐄𝐌𝐘': 2784583089,
+#     'Forex Scalping Strategy 📈': 2784583090,
+#     'Mr Beast Gold': 2784583091,
+#     'Areval Forex™': 2784583092,
+#     'FX UNIQUE TRADE 😍😍😍': 2784583093,
+#     '🍀KING GOLD FOREX🍀🍀': 2784583094,
+#     'King Of Gold⚡️': 2784583095,
+#     'GOLD MASTER': 2784583096,
+#     'FOREX TRADING SIGNAL(free)': 2784583097,
+#     'XAUUSD GBPUSD': 2784583098,
+#     'Chef Hazzim Scalping Maut🏆': 2784583099,
+#     'Exnees account manager': 2784583100,
+#     '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583101,
+#     'MXGOLDTRADE': 2784583102,
+#     'FOREX CHAMPION': 2784583103,
+#     'Forex Signals🔥💰 XAUUSD': 2784583104,
+#     '🔰PREMIUM Fx Signals💯': 2784583105,
+#     '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583106,
+#     'Daily Forex Signals': 2784583107,
+#     'APEX BULL FO®EX SIGNALS (free)': 2784583108,
+#     'Barclays Forex®': 2784583109,
+#     'GOLD FX SIGNALS': 2784583110,
+#     '𝐂𝐀𝐏𝐓𝐀𝐈𝐍 𝐅𝐎𝐑𝐄𝐗 𝐓𝐑𝐀𝐃𝐈𝐍𝐆': 2784583111,
+#     'Gold signal killer pips': 2784583112
+# }
 
 # List of symbols to look for
 symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD']  # Add more symbols as needed
@@ -78,6 +85,9 @@ symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', '
 
 # Dictionary to track counts and timestamps
 trade_tracker = {}
+
+
+
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -295,13 +305,33 @@ async def process_all_group_messages(start_date, session):
         # Wait for 10 seconds before checking again
         await asyncio.sleep(10)
 
+#Telegram Groups
+def populate_telegram_groups():
+    global groups_info
+    
+    conn = sqlite3.connect(dbPath)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT tbl_telegramGroups_GroupName, tbl_telegramGroup_MagicNumber 
+        FROM tbl_telegramGroups
+        WHERE tbl_telegramGroup_ActiveIndicator = 1
+    """)
+    rows = cursor.fetchall()
+
+    groups_info = {row[0]: row[1] for row in rows}
+
+    conn.close()
+
+async def updateTelegramGroups():
+    while True:
+        print("Telegram groups updated")  # Replace this with the actual function you want to run
+        populate_telegram_groups()
+        await asyncio.sleep(3600)  # Sleep for 5 seconds for testing, change to 3600 for 1 hour
+
 def InitializeAccounts():
     print("----------InitializeAccounts---------")
-    
-    PATH = os.path.abspath(__file__)
-    DIRECTORY = os.path.dirname(os.path.dirname(PATH))
-    dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
-    
+
     DB_CONNECTION = dbPath
 
     db_conn = sqlite3.connect(DB_CONNECTION)
@@ -324,7 +354,14 @@ def InitializeAccounts():
 
     db_conn.close()
 
+#Function call on startup
+populate_telegram_groups()
+print(groups_info)
+
 async def main():
+
+    update_task = asyncio.create_task(updateTelegramGroups())
+
     InitializeAccounts()
     await client.start(phone)
     print("Client Created")
@@ -332,9 +369,10 @@ async def main():
     # Start date to filter messages
     start_date = datetime.now(timezone.utc)
     
-
     async with aiohttp.ClientSession() as session:
         await process_all_group_messages(start_date, session)
+
+    await update_task
 
 with client:
     client.loop.run_until_complete(main())
