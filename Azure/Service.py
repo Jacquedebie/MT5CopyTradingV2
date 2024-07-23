@@ -399,7 +399,7 @@ def check_for_modify_trades(loop):
             if tradeMt5.ticket in tracked_trades:
                 last_sl, last_tp = tracked_trades[tradeMt5.ticket]
                 if last_sl != tradeMt5.sl or last_tp != tradeMt5.tp:
-                    print(f"Trade {tradeMt5.ticket} has SL {last_sl} or TP {last_tp} changed. Modifying trade")
+                    #print(f"Trade {tradeMt5.ticket} has SL {last_sl} or TP {last_tp} changed. Modifying trade")
                     trade_details = {
                         "Code": "ModifyTradeSLTP",
                         "Symbol": tradeMt5.symbol,
