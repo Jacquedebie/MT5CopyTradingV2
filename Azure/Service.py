@@ -188,7 +188,7 @@ async def ClientConnected(writer, json_data):
         # request history for the account
 
         today = datetime.today()
-        seven_days_ago = today - timedelta(days=7)
+        seven_days_ago = today - timedelta(days=2)
         tomorrow = today + timedelta(days=1)
 
         messageRequest = {
@@ -803,7 +803,7 @@ def setup_scheduler():
     print("Setting up scheduler")
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_Billing, 'cron', hour=14, minute=25) #daily at 00:00
+    scheduler.add_job(daily_Billing, 'cron', hour=11, minute=13) #daily at 00:00
     #scheduler.add_job(daily_Billing, 'cron', minute=0) # each hour for testing
     scheduler.start()
 
