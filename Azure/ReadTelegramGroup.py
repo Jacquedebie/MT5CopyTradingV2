@@ -14,6 +14,7 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+
 # Your api_id and api_hash from my.telegram.org
 api_id = '21789309'
 api_hash = '25cfde9a425a3658172d011e45e81a2c'
@@ -31,23 +32,7 @@ sameSignalCount = 5  # Number of same signals before placing a trade
 client = TelegramClient('session_name', api_id, api_hash)
 
 
-#populate telegram groups
-print("----------Populate Telegram Groups---------")
-
-conn = sqlite3.connect(dbPath)
-cursor = conn.cursor()
-
-cursor.execute("""
-    SELECT tbl_telegramGroups_GroupName, tbl_telegramGroup_MagicNumber 
-    FROM tbl_telegramGroups
-    WHERE tbl_telegramGroup_ActiveIndicator = 1
-""")
-rows = cursor.fetchall()
-
-groups_info = {row[0]: row[1] for row in rows}
-
-conn.close()
-
+groups_info = {}
 # Dictionary to maintain group names and their corresponding magic numbers
 # groups_info = {
 #     'JDB Copy Trading Counter': 2784583071,
@@ -100,6 +85,9 @@ symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', '
 
 # Dictionary to track counts and timestamps
 trade_tracker = {}
+
+
+
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -318,13 +306,32 @@ async def process_all_group_messages(start_date, session):
         await asyncio.sleep(10)
 
 #Telegram Groups
+def populate_telegram_groups():
+    global groups_info
+    
+    conn = sqlite3.connect(dbPath)
+    cursor = conn.cursor()
 
+    cursor.execute("""
+        SELECT tbl_telegramGroups_GroupName, tbl_telegramGroup_MagicNumber 
+        FROM tbl_telegramGroups
+        WHERE tbl_telegramGroup_ActiveIndicator = 1
+    """)
+    rows = cursor.fetchall()
+
+    groups_info = {row[0]: row[1] for row in rows}
+
+    conn.close()
+
+async def updateTelegramGroups():
+    while True:
+        print("Telegram groups updated")  # Replace this with the actual function you want to run
+        populate_telegram_groups()
+        await asyncio.sleep(3600)  # Sleep for 5 seconds for testing, change to 3600 for 1 hour
 
 def InitializeAccounts():
     print("----------InitializeAccounts---------")
-    
-   
-    
+
     DB_CONNECTION = dbPath
 
     db_conn = sqlite3.connect(DB_CONNECTION)
@@ -347,7 +354,13 @@ def InitializeAccounts():
 
     db_conn.close()
 
+#Function call on startup
+populate_telegram_groups()
+print(groups_info)
+
 async def main():
+
+    update_task = asyncio.create_task(updateTelegramGroups())
 
     InitializeAccounts()
     await client.start(phone)
@@ -356,9 +369,10 @@ async def main():
     # Start date to filter messages
     start_date = datetime.now(timezone.utc)
     
-
     async with aiohttp.ClientSession() as session:
         await process_all_group_messages(start_date, session)
+
+    await update_task
 
 with client:
     client.loop.run_until_complete(main())
