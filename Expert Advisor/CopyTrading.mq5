@@ -329,7 +329,7 @@ void AccountHistory(string json)
                 HTTPSend(socket, finalJsonStr);
                 Print("Sent JSON to server: " + finalJsonStr);
 
-                Sleep(50); 
+                Sleep(100); 
             }
         }
         else

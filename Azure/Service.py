@@ -195,7 +195,7 @@ async def ClientConnected(writer, json_data):
             "Code": "AccountHistory",
             "From": seven_days_ago.strftime("%Y-%m-%d"),
             "To": tomorrow.strftime("%Y-%m-%d"),
-            "TradesIncluded": 15
+            "TradesIncluded": 10
         }
 
         trade_history_json = json.dumps(messageRequest)
@@ -779,7 +779,7 @@ async def daily_Billing():
                             "Code": "AccountHistory",
                             "From": yesterday.strftime("%Y-%m-%d"),
                             "To": tomorrow.strftime("%Y-%m-%d"),
-                            "TradesIncluded" : 15
+                            "TradesIncluded" : 10
                         }
                         
                         trade_history_json = json.dumps(messageRequest)
