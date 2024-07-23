@@ -48,7 +48,6 @@ def init_db():
                   tbl_Communication_AccountNumber INTEGER NOT NULL,
                   tbl_Communication_Time TEXT NOT NULL,
                   tbl_Communication_Message TEXT NOT NULL)''')
-    
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_Transactions
                  (pk_tbl_Transactions INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_Transactions_AccountNumber INTEGER NOT NULL,
@@ -58,14 +57,17 @@ def init_db():
                   tbl_Transactions_Profit REAL NOT NULL,
                   tbl_Transactions_ProfitShare REAL NOT NULL,
                   tbl_Transactions_Paid BOOLEAN NOT NULL DEFAULT 0)''')
-    
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_TradeTransaction
                  (pk_tbl_TradeTransaction INTEGER PRIMARY KEY AUTOINCREMENT,
                   fk_tbl_Transactions INTEGER NOT NULL,
                   fk_tbl_trade INTEGER NOT NULL,
                   FOREIGN KEY (fk_tbl_Transactions) REFERENCES tbl_Transactions (pk_tbl_Transactions),
                   FOREIGN KEY (fk_tbl_trade) REFERENCES tbl_trade (pk_tbl_trade))''')
-    
+    c.execute('''CREATE TABLE IF NOT EXISTS tbl_telegramGroups
+                 (pk_tbl_telegramGroups INTEGER PRIMARY KEY AUTOINCREMENT,
+                  tbl_telegramGroups_GroupName TEXT UNIQUE,
+                  tbl_telegramGroup_MagicNumber INTEGER UNIQUE,
+                  tbl_telegramGroup_ActiveIndicator INTEGER)''')
     conn.commit()
     conn.close()
 
@@ -111,54 +113,18 @@ def update_record(table, entries, pk, checkboxes=None):
         update_values = [entry.get() if isinstance(entry, tk.Entry) else entry.get() for entry in entries.values()]
 
         if checkboxes:
-            chekvalue = {key: bool(var.get()) for key, var in checkboxes.items()}
-            print("Checkboxes:", chekvalue)
             for col, var in checkboxes.items():
                 set_clause += f', {col} = ?'
-                update_values.append(bool(var.get()))
+                update_values.append(var.get())
 
         update_values.append(pk_value)
         query = f'UPDATE {table} SET {set_clause} WHERE {pk} = ?'
-
-        # Print the query and values for debugging
-        print("Executing query:", query)
-        print("With values:", update_values)
-
-        # Print all entries and checkboxes for debugging
-        print("Entries:", {key: entry.get() if isinstance(entry, tk.Entry) else entry.get() for key, entry in entries.items()})
-        if checkboxes:
-            print("Checkboxes:", chekvalue)
-
         c.execute(query, update_values)
-
-        # Check if the table is tbl_Transactions and if tbl_Transactions_Paid is set to true
-        if table == 'tbl_Transactions':
-            if chekvalue:
-                paid_value = chekvalue
-                print(f"tbl_Transactions_Paid value: {paid_value}")  # Debug line
-                if paid_value :  # Adjust the comparison based on actual value type (int)
-                    account_number = entries['tbl_Transactions_AccountNumber'].get()
-                    update_user_query = 'UPDATE tbl_user SET tbl_user_Active = 1 WHERE tbl_user_AccountNumber = ?'
-                    print("Executing user update query:", update_user_query)
-                    print("With account number:", account_number)
-                    c.execute(update_user_query, (account_number,))
-            else:
-                print("tbl_Transactions_Paid not found in entries")
-
         conn.commit()
         clear_entries(entries, checkboxes)
         display_records(table, treeviews[table])
-
-        # Reselect the updated item in the Treeview by primary key value
-        for item in treeviews[table].get_children():
-            if treeviews[table].item(item)['values'][0] == pk_value:
-                treeviews[table].selection_set(item)
-                treeviews[table].see(item)
-                break
-
     except Exception as e:
         messagebox.showerror("Update Error", f"Failed to update record: {e}")
-        print("Error details:", e)
     finally:
         conn.close()
 
@@ -174,12 +140,6 @@ def delete_record(table, pk):
         c.execute(query, (pk_value,))
         conn.commit()
         treeviews[table].delete(selected_item)
-        if table == 'tbl_Transactions':
-            c.execute('''
-                DELETE FROM tbl_TradeTransaction
-                WHERE fk_tbl_Transactions = ?
-            ''', (pk_value,))
-            conn.commit()
     except Exception as e:
         messagebox.showerror("Delete Error", f"Failed to delete record: {e}")
     finally:
@@ -222,51 +182,6 @@ def on_tree_select(event, table, entries, checkboxes=None):
         offset = len(entries) + 1  # Adjust for primary key
         for (col, var), value in zip(checkboxes.items(), values[offset:]):
             var.set(value)
-
-# Function to sort columns for each Treeview
-def sort_column(tree, col, reverse):
-    items = [(tree.set(k, col), k) for k in tree.get_children('')]
-    items.sort(reverse=reverse)
-
-    for index, (val, k) in enumerate(items):
-        tree.move(k, '', index)
-
-    tree.heading(col, command=lambda: sort_column(tree, col, not reverse))
-
-def sort_column_account(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-def sort_column_user(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-def sort_column_trade(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-def sort_column_communication(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-def sort_column_active_trade(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-def sort_column_transactions(tree, col, reverse):
-    sort_column(tree, col, reverse)
-
-# Function to handle search in tbl_trade and tbl_Communication
-def search_records(table, entries):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    try:
-        columns = list(entries.keys())
-        values = [entry.get() for entry in entries.values()]
-        
-        query = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{col} LIKE ?" for col in columns])
-        params = [f"%{value}%" for value in values]
-        
-        display_records(table, treeviews[table], query, params)
-    except Exception as e:
-        messagebox.showerror("Search Error", f"Failed to search records: {e}")
-    finally:
-        conn.close()
 
 # Initialize GUI
 init_db()
@@ -320,8 +235,13 @@ tables = {
         'tbl_Transactions_DateTo': 'Date To',
         'tbl_Transactions_TradeCount': 'Trade Count',
         'tbl_Transactions_Profit': 'Profit',
-        'tbl_Transactions_ProfitShare' : 'Profit Share',
+        'tbl_Transactions_ProfitShare': 'Profit Share',
         'tbl_Transactions_Paid': 'Paid'
+    }),
+    'tbl_telegramGroups': ('pk_tbl_telegramGroups', {
+        'tbl_telegramGroups_GroupName': 'Group Name',
+        'tbl_telegramGroup_MagicNumber': 'Magic Number',
+        'tbl_telegramGroup_ActiveIndicator': 'Active Indicator'
     })
 }
 
@@ -332,7 +252,8 @@ tab_names = {
     'tbl_trade': 'All Trades',
     'tbl_Communication': 'Communication',
     'tbl_ActiveTrade': 'Active Trades',
-    'tbl_Transactions': 'Trade Summary'
+    'tbl_Transactions': 'Trade Summary',
+    'tbl_telegramGroups': 'Telegram Groups'
 }
 
 treeviews = {}
@@ -346,7 +267,7 @@ for table, (pk, columns) in tables.items():
     for i, (col, text) in enumerate(columns.items()):
         ttk.Label(frame, text=text).grid(row=i, column=0, padx=5, pady=5, sticky=tk.W)
         
-        if col in ['tbl_account_active', 'tbl_account_mainaccount', 'tbl_user_Active', 'tbl_Transactions_Paid']:
+        if col in ['tbl_account_active', 'tbl_account_mainaccount', 'tbl_user_Active', 'tbl_Transactions_Paid', 'tbl_telegramGroup_ActiveIndicator']:
             var = tk.IntVar()
             checkbox = ttk.Checkbutton(frame, variable=var)
             checkbox.grid(row=i, column=1, padx=5, pady=5)
@@ -471,11 +392,6 @@ user_vsb = ttk.Scrollbar(filter_frame, orient="vertical", command=user_tree.yvie
 user_tree.configure(yscrollcommand=user_vsb.set)
 user_vsb.grid(row=1, column=11, sticky="ns")
 
-# # Treeview for tbl_trade
-# trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time","tbl_trade_type" , "tbl_trade_swap" ], show='headings')
-# for col in ["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time","tbl_trade_type" , "tbl_trade_swap"]:
-#     trade_tree.heading(col, text=col, command=lambda _col=col: sort_column_trade(trade_tree, _col, False))
-# trade_tree.grid(row=2, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 # Treeview for tbl_trade
 trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time", "tbl_trade_type", "tbl_trade_swap"], show='headings')
 
@@ -505,8 +421,8 @@ trade_tree.configure(yscrollcommand=trade_vsb.set)
 trade_vsb.grid(row=2, column=11, sticky="ns")
 
 # Treeview for tbl_Transactions
-transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"], show='headings')
-for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit","tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"]:
+transactions_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"], show='headings')
+for col in ["pk_tbl_Transactions", "tbl_Transactions_AccountNumber", "tbl_Transactions_DateFrom", "tbl_Transactions_DateTo", "tbl_Transactions_TradeCount", "tbl_Transactions_Profit", "tbl_Transactions_ProfitShare", "tbl_Transactions_Paid"]:
     transactions_tree.heading(col, text=col, command=lambda _col=col: sort_column_transactions(transactions_tree, _col, False))
 transactions_tree.grid(row=3, column=0, columnspan=11, padx=5, pady=5, sticky="nsew")
 
