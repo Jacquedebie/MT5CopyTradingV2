@@ -136,6 +136,12 @@ def delete_record(table, pk):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     try:
+        print(table)
+        if table == 'tbl_Transactions':
+            query = f'DELETE FROM tbl_TradeTransaction WHERE fk_tbl_Transactions = ?'
+            c.execute(query, (pk_value,))
+            
+
         query = f'DELETE FROM {table} WHERE {pk} = ?'
         c.execute(query, (pk_value,))
         conn.commit()
