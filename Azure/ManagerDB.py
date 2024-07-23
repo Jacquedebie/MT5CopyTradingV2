@@ -128,6 +128,7 @@ def update_record(table, entries, pk, checkboxes=None):
     finally:
         conn.close()
 
+
 def delete_record(table, pk):
     selected_item = treeviews[table].selection()[0]
     values = treeviews[table].item(selected_item, 'values')
@@ -296,9 +297,11 @@ for table, (pk, columns) in tables.items():
         archive_checkbox = ttk.Checkbutton(frame, text="Archive Clients", variable=archive_var)
         archive_checkbox.grid(row=len(columns) + 3, column=0, padx=5, pady=5)
 
-    elif table == 'tbl_trade' or table == 'tbl_Communication':
-        # Search functionality for tbl_trade and tbl_Communication
-        ttk.Button(frame, text="Search", command=lambda tbl=table, ent=entries: search_records(tbl, ent)).grid(row=len(columns), column=0, padx=5, pady=5)
+    elif table == 'tbl_trade' or table == 'tbl_Communication' or table == 'tbl_telegramGroups':
+        # Insert, Update, and Search functionality for tbl_trade, tbl_Communication, and tbl_telegramGroups
+        ttk.Button(frame, text="Insert", command=lambda tbl=table, ent=entries, cb=checkboxes: insert_record(tbl, ent, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
+        ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns), column=1, padx=5, pady=5)
+        ttk.Button(frame, text="Search", command=lambda tbl=table, ent=entries: search_records(tbl, ent)).grid(row=len(columns), column=2, padx=5, pady=5)
     else:
         # Insert, Update, Delete, and Clear buttons for other tables
         ttk.Button(frame, text="Insert", command=lambda tbl=table, ent=entries, cb=checkboxes: insert_record(tbl, ent, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
@@ -465,6 +468,22 @@ def search_users():
             params.append(f"%{user_email_entry.get()}%")
     display_records('tbl_user', user_tree, query, params)
 
+def search_records(table, entries):
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    try:
+        columns = list(entries.keys())
+        values = [entry.get() for entry in entries.values()]
+        
+        query = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{col} LIKE ?" for col in columns])
+        params = [f"%{value}%" for value in values]
+        
+        display_records(table, treeviews[table], query, params)
+    except Exception as e:
+        messagebox.showerror("Search Error", f"Failed to search records: {e}")
+    finally:
+        conn.close()
+
 def handle_selection(event, source):
     if source == "account":
         user_tree.selection_remove(user_tree.selection())
@@ -614,7 +633,6 @@ def RunTradeForTheWeek():
         print(f"Error details: {e}")  # Detailed error logging
     finally:
         conn.close()
-
 
 # Display all accounts and users initially
 search_accounts()
