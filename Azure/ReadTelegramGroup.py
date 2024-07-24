@@ -211,20 +211,25 @@ async def process_all_group_messages(start_date, session):
                                     symbol = "XBRUSD"
                                 elif symbol == "XAUUSD":
                                     symbol = "GOLD"
-                                    
-                                sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
+
+                                # Find stop loss lines
+                                sl_keywords = ['SL', 'STOP LOSS', 'STOPLOSS']
+                                sl_line = [line for line in text.split('\n') if any(kw in line for kw in sl_keywords)]
                                 sl = sl_line[0].split(':')[-1].strip() if sl_line else None
                                 sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
                                 # Remove any leading periods
                                 if sl and sl.startswith('.'):
                                     sl = sl[1:]
-                                    
-                                tp_lines = [line for line in text.split('\n') if 'TP' in line]
+
+                                # Find take profit lines
+                                tp_keywords = ['TP', 'TAKE PROFIT', 'TAKEPROFIT']
+                                tp_lines = [line for line in text.split('\n') if any(kw in line for kw in tp_keywords)]
                                 tps = [
                                     re.sub(r'^\.', '', re.sub(r'[^\d.]', '', line.split(':')[-1].strip()))
                                     for line in tp_lines
                                 ]
+
                                 return trade_type, symbol, sl, tps, price
 
                             async def parse_and_send_messages(message_text):
@@ -264,7 +269,7 @@ async def process_all_group_messages(start_date, session):
                                                 trade_tracker[key]['count'] = 0
                                                 trade_tracker[key]['groups'].clear()
 
-                                                #This wil place the Trade from the Originator
+                                                # This will place the Trade from the Originator
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                         message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
@@ -273,7 +278,7 @@ async def process_all_group_messages(start_date, session):
                                                         else:
                                                             print("Failed to place order")
                                                 
-                                                #This wil place the Trade under JDB Copy Trading Counter
+                                                # This will place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                         message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
@@ -289,11 +294,12 @@ async def process_all_group_messages(start_date, session):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
                                                             print("Failed to place order")
-                                                       
+                                                        
                                 except IndexError:
                                     print(f"Error parsing message from {group_name}: {message_text}")
                                 except Exception as e:
                                     print(f"Unexpected error: {e}")
+
 
                             await parse_and_send_messages(message_text)
 
