@@ -327,6 +327,8 @@ for table, (pk, columns) in tables.items():
         if table == 'tbl_telegramGroups':
             treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
             treeviews[table].bind("<ButtonRelease-1>", lambda event, ent=entries, cb=checkboxes: on_tree_select_telegramGroups(event, ent, cb))
+            # Assuming you are at the part where you set up tbl_telegramGroups
+            ttk.Button(frame, text="Search", command=lambda: search_telegram_groups(entries)).grid(row=len(columns), column=5, padx=5, pady=5)
 
         elif table == 'tbl_user':
             treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
@@ -567,6 +569,23 @@ def filter_related_records(source):
         # Filter tbl_Transactions records
         transactions_query = "SELECT * FROM tbl_Transactions WHERE tbl_Transactions_AccountNumber = ?"
         display_records('tbl_Transactions', transactions_tree, transactions_query, (user_account_number,))
+
+def search_telegram_groups(entries):
+    query = "SELECT * FROM tbl_telegramGroups WHERE 1=1"
+    params = []
+    
+    group_name = entries['tbl_telegramGroups_GroupName'].get()
+    magic_number = entries['tbl_telegramGroup_MagicNumber'].get()
+
+    if group_name:
+        query += " AND tbl_telegramGroups_GroupName LIKE ?"
+        params.append(f"%{group_name}%")
+    # if magic_number:
+    #     query += " AND tbl_telegramGroup_MagicNumber LIKE ?"
+    #     params.append(f"%{magic_number}%")
+
+    display_records('tbl_telegramGroups', treeviews['tbl_telegramGroups'], query, params)
+
 
 import datetime
 
