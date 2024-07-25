@@ -67,7 +67,8 @@ def init_db():
                  (pk_tbl_telegramGroups INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_telegramGroups_GroupName TEXT UNIQUE,
                   tbl_telegramGroup_MagicNumber INTEGER UNIQUE,
-                  tbl_telegramGroup_ActiveIndicator INTEGER)''')
+                  tbl_telegramGroup_ActiveIndicator INTEGER,
+                  tbl_telegramGroup_DeactiveReason TEXT)''')
     conn.commit()
     conn.close()
 
@@ -110,7 +111,7 @@ def update_record(table, entries, pk, checkboxes=None):
     c = conn.cursor()
     try:
         set_clause = ', '.join([f'{col} = ?' for col in entries.keys()])
-        update_values = [entry.get() if isinstance(entry, tk.Entry) else entry.get() for entry in entries.values()]
+        update_values = [entry.get() for entry in entries.values()]
 
         if checkboxes:
             for col, var in checkboxes.items():
@@ -128,7 +129,6 @@ def update_record(table, entries, pk, checkboxes=None):
     finally:
         conn.close()
 
-
 def delete_record(table, pk):
     selected_item = treeviews[table].selection()[0]
     values = treeviews[table].item(selected_item, 'values')
@@ -137,12 +137,10 @@ def delete_record(table, pk):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     try:
-        print(table)
         if table == 'tbl_Transactions':
             query = f'DELETE FROM tbl_TradeTransaction WHERE fk_tbl_Transactions = ?'
             c.execute(query, (pk_value,))
             
-
         query = f'DELETE FROM {table} WHERE {pk} = ?'
         c.execute(query, (pk_value,))
         conn.commit()
@@ -188,7 +186,47 @@ def on_tree_select(event, table, entries, checkboxes=None):
     if checkboxes:
         offset = len(entries) + 1  # Adjust for primary key
         for (col, var), value in zip(checkboxes.items(), values[offset:]):
-            var.set(value)
+            try:
+                var.set(int(value))
+            except ValueError:
+                var.set(0)  # Set default value if conversion fails
+
+def on_tree_select_telegramGroups(event, entries, checkboxes=None):
+    selected_item = treeviews['tbl_telegramGroups'].selection()[0]
+    values = treeviews['tbl_telegramGroups'].item(selected_item, 'values')
+    
+    # Explicitly map the values to the corresponding entries and checkboxes
+    entries['tbl_telegramGroups_GroupName'].delete(0, tk.END)
+    entries['tbl_telegramGroups_GroupName'].insert(0, values[1])
+
+    entries['tbl_telegramGroup_MagicNumber'].delete(0, tk.END)
+    entries['tbl_telegramGroup_MagicNumber'].insert(0, values[2])
+
+    if checkboxes:
+        checkboxes['tbl_telegramGroup_ActiveIndicator'].set(int(values[3]))
+
+    entries['tbl_telegramGroup_DeactiveReason'].delete(0, tk.END)
+    entries['tbl_telegramGroup_DeactiveReason'].insert(0, values[4])
+
+
+def set_column_widths(tree, table):
+    column_widths = {
+        "pk_tbl_trade": 50,
+        "tbl_trade_account": 100,
+        "tbl_trade_ticket": 100,
+        "tbl_trade_magic": 100,
+        "tbl_trade_volume": 80,
+        "tbl_trade_profit": 80,
+        "tbl_trade_symbol": 80,
+        "tbl_trade_billed": 80,
+        "tbl_trade_time": 120,
+        "tbl_trade_type": 80,
+        "tbl_trade_swap": 80
+    }
+
+    if table == 'tbl_trade':
+        for col, width in column_widths.items():
+            tree.column(col, width=width)
 
 # Initialize GUI
 init_db()
@@ -248,7 +286,8 @@ tables = {
     'tbl_telegramGroups': ('pk_tbl_telegramGroups', {
         'tbl_telegramGroups_GroupName': 'Group Name',
         'tbl_telegramGroup_MagicNumber': 'Magic Number',
-        'tbl_telegramGroup_ActiveIndicator': 'Active Indicator'
+        'tbl_telegramGroup_ActiveIndicator': 'Active Indicator',
+        'tbl_telegramGroup_DeactiveReason': 'Deactive Reason'
     })
 }
 
@@ -284,68 +323,33 @@ for table, (pk, columns) in tables.items():
             entry.grid(row=i, column=1, padx=5, pady=5)
             entries[col] = entry
 
-    if table == 'tbl_user':
-        # Update and Delete functionality for tbl_user
-        ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
-        ttk.Button(frame, text="Delete", command=lambda tbl=table, pk=pk: delete_record(tbl, pk)).grid(row=len(columns), column=1, padx=5, pady=5)
-        
-        # Add a button under the grid for additional functionality
-        ttk.Button(frame, text="Run Trades For The Week", command=lambda: RunTradeForTheWeek()).grid(row=len(columns) + 2, column=0, padx=5, pady=5)
-        
-        # Add Archive Clients checkbox
-        archive_var = tk.IntVar()
-        archive_checkbox = ttk.Checkbutton(frame, text="Archive Clients", variable=archive_var)
-        archive_checkbox.grid(row=len(columns) + 3, column=0, padx=5, pady=5)
+        # Ensure correct bindings for the telegramGroups table
+        if table == 'tbl_telegramGroups':
+            treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
+            treeviews[table].bind("<ButtonRelease-1>", lambda event, ent=entries, cb=checkboxes: on_tree_select_telegramGroups(event, ent, cb))
+        else:
+            treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
+            treeviews[table].bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
 
-    elif table == 'tbl_trade' or table == 'tbl_Communication' or table == 'tbl_telegramGroups':
-        # Insert, Update, and Search functionality for tbl_trade, tbl_Communication, and tbl_telegramGroups
-        ttk.Button(frame, text="Insert", command=lambda tbl=table, ent=entries, cb=checkboxes: insert_record(tbl, ent, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
-        ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns), column=1, padx=5, pady=5)
-        ttk.Button(frame, text="Search", command=lambda tbl=table, ent=entries: search_records(tbl, ent)).grid(row=len(columns), column=2, padx=5, pady=5)
-    else:
-        # Insert, Update, Delete, and Clear buttons for other tables
-        ttk.Button(frame, text="Insert", command=lambda tbl=table, ent=entries, cb=checkboxes: insert_record(tbl, ent, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
-        ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns), column=1, padx=5, pady=5)
-        ttk.Button(frame, text="Delete", command=lambda tbl=table, pk=pk: delete_record(tbl, pk)).grid(row=len(columns), column=2, padx=5, pady=5)
-        ttk.Button(frame, text="Clear", command=lambda ent=entries, cb=checkboxes: clear_entries(ent, cb)).grid(row=len(columns), column=3, padx=5, pady=5)
-    
-    # Refresh button
-    ttk.Button(frame, text="Refresh", command=lambda tbl=table: display_records(tbl, treeviews[tbl])).grid(row=len(columns), column=4, padx=5, pady=5)
+    for col in [pk] + list(columns.keys()):
+        treeviews[table].heading(col, text=col, command=lambda _col=col, tbl=table: sort_column(tbl, treeviews[tbl], _col, False))
 
-    # Treeview
-    cols = [pk] + list(columns.keys())
-    tree = ttk.Treeview(frame, columns=cols, show='headings')
-    for col in cols:
-        tree.heading(col, text=col, command=lambda _col=col: sort_column(tree, _col, False))
+    treeviews[table].grid(row=len(columns) + 1, column=0, columnspan=5, padx=5, pady=5)
     
-    # Set column widths for 'All Trades' tab
-    if table == 'tbl_trade':
-        column_widths = {
-            'pk_tbl_trade': 50,
-            'tbl_trade_account': 100,
-            'tbl_trade_ticket': 100,
-            'tbl_trade_magic': 100,
-            'tbl_trade_volume': 80,
-            'tbl_trade_profit': 80,
-            'tbl_trade_symbol': 80,
-            'tbl_trade_billed': 80,
-            'tbl_trade_time': 120,
-            'tbl_trade_type': 80,
-            'tbl_trade_swap': 80
-        }
-        for col, width in column_widths.items():
-            tree.column(col, width=width)
-    
-    tree.grid(row=len(columns) + 1, column=0, columnspan=5, padx=5, pady=5)
-    tree.bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
-
     # Add vertical scrollbar to treeview
-    vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
-    tree.configure(yscrollcommand=vsb.set)
+    vsb = ttk.Scrollbar(frame, orient="vertical", command=treeviews[table].yview)
+    treeviews[table].configure(yscrollcommand=vsb.set)
     vsb.grid(row=len(columns) + 1, column=5, sticky="ns")
 
-    treeviews[table] = tree
-    display_records(table, tree)
+    set_column_widths(treeviews[table], table)
+
+    ttk.Button(frame, text="Insert", command=lambda tbl=table, ent=entries, cb=checkboxes: insert_record(tbl, ent, cb)).grid(row=len(columns), column=0, padx=5, pady=5)
+    ttk.Button(frame, text="Update", command=lambda tbl=table, ent=entries, pk=pk, cb=checkboxes: update_record(tbl, ent, pk, cb)).grid(row=len(columns), column=1, padx=5, pady=5)
+    ttk.Button(frame, text="Delete", command=lambda tbl=table, pk=pk: delete_record(tbl, pk)).grid(row=len(columns), column=2, padx=5, pady=5)
+    ttk.Button(frame, text="Clear", command=lambda ent=entries, cb=checkboxes: clear_entries(ent, cb)).grid(row=len(columns), column=3, padx=5, pady=5)
+    ttk.Button(frame, text="Refresh", command=lambda tbl=table: display_records(tbl, treeviews[tbl])).grid(row=len(columns), column=4, padx=5, pady=5)
+
+    display_records(table, treeviews[table])
 
 # Add "Filter on Account" tab
 filter_frame = ttk.Frame(notebook)
@@ -441,6 +445,40 @@ transactions_vsb.grid(row=3, column=11, sticky="ns")
 
 # Refresh button for Filter on Account tab
 ttk.Button(filter_frame, text="Refresh", command=lambda: [search_accounts(), search_users()]).grid(row=4, column=0, columnspan=11, padx=5, pady=5)
+
+# Define the sorting functions
+def sort_column(table, tree, col, reverse):
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(f'SELECT * FROM {table} ORDER BY {col} {"DESC" if reverse else "ASC"}')
+    records = c.fetchall()
+    for row in tree.get_children():
+        tree.delete(row)
+    for record in records:
+        tree.insert("", "end", values=record)
+    conn.close()
+    tree.heading(col, text=col, command=lambda: sort_column(table, tree, col, not reverse))
+
+def sort_column_account(tree, col, reverse):
+    sort_column('tbl_Account', tree, col, reverse)
+
+def sort_column_user(tree, col, reverse):
+    sort_column('tbl_user', tree, col, reverse)
+
+def sort_column_trade(tree, col, reverse):
+    sort_column('tbl_trade', tree, col, reverse)
+
+def sort_column_transactions(tree, col, reverse):
+    sort_column('tbl_Transactions', tree, col, reverse)
+
+def sort_column_communication(tree, col, reverse):
+    sort_column('tbl_Communication', tree, col, reverse)
+
+def sort_column_activetrade(tree, col, reverse):
+    sort_column('tbl_ActiveTrade', tree, col, reverse)
+
+def sort_column_telegramgroups(tree, col, reverse):
+    sort_column('tbl_telegramGroups', tree, col, reverse)
 
 def search_accounts():
     query = "SELECT tbl_account_name, tbl_account_id FROM tbl_Account"
