@@ -327,6 +327,18 @@ for table, (pk, columns) in tables.items():
         if table == 'tbl_telegramGroups':
             treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
             treeviews[table].bind("<ButtonRelease-1>", lambda event, ent=entries, cb=checkboxes: on_tree_select_telegramGroups(event, ent, cb))
+
+        elif table == 'tbl_user':
+            treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
+            treeviews[table].bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
+            
+            # Add a button under the grid for additional functionality
+            ttk.Button(frame, text="Run Trades For The Week", command=lambda: RunTradeForTheWeek()).grid(row=len(columns) + 2, column=0, padx=5, pady=5)
+            
+            # Add Archive Clients checkbox
+            archive_var = tk.IntVar()
+            archive_checkbox = ttk.Checkbutton(frame, text="Archive Clients", variable=archive_var)
+            archive_checkbox.grid(row=len(columns) + 3, column=0, padx=5, pady=5)
         else:
             treeviews[table] = ttk.Treeview(frame, columns=[pk] + list(columns.keys()), show='headings')
             treeviews[table].bind("<ButtonRelease-1>", lambda event, tbl=table, ent=entries, cb=checkboxes: on_tree_select(event, tbl, ent, cb))
