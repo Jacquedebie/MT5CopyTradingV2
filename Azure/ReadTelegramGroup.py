@@ -14,6 +14,7 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+lotSizeToUse = 0.01
 
 # Your api_id and api_hash from my.telegram.org
 #JDB
@@ -88,7 +89,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
-        "volume": symbol_info.volume_min,
+        "volume": float(lotSizeToUse),
         "type": order_type,
         "price": float(price),
         "tp": float(tp),
