@@ -14,11 +14,19 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
+lotSizeToUse = 0.01
 
 # Your api_id and api_hash from my.telegram.org
+#JDB
 api_id = '21789309'
 api_hash = '25cfde9a425a3658172d011e45e81a2c'
 phone = '+2784583071'  # e.g. +123456789
+
+# #JW
+# api_id = '21265406'
+# api_hash = 'aed729c24e62f0aa55e263ca153bbc3e'
+# phone = '+27744183636'  # e.g. +123456789
+
 
 bot_token = '6695292881:AAHoEsUyrgkHAYqsbXcn9XWN9Y7nNTi5Jy4'
 JDBCopyTrading_chat_id = '-1001920185934'
@@ -33,60 +41,19 @@ client = TelegramClient('session_name', api_id, api_hash)
 
 
 groups_info = {}
-# Dictionary to maintain group names and their corresponding magic numbers
-# groups_info = {
-#     'JDB Copy Trading Counter': 2784583071,
-#     'Gold Scalper Ninja': 2784583072,
-#     'FABIO VIP SQUAD': 2784583073,
-#     'THE FOREX BOAR 🚀': 2784583074,
-#     'JDB Copy Signals': 2784583075,
-#     'JDB Copy Signals2': 2784583076,
-#     'JDB Copy Signals3': 2784583077,
-#     'JDB Copy Signals4': 2784583078,
-#     '‎سيد تجارة الفوركس': 2784583079,
-#     'GOLD FATHER CHRIS': 2784583080,
-#     '𝘍𝘰𝘳𝘦𝘹 𝘎𝘰𝘭𝘥 𝘔𝘢𝘴𝘵𝘦𝘳': 2784583081,
-#     '𝗚𝗢𝗟𝗗 𝗣𝗥𝗢 𝗧𝗥𝗔𝗗𝗘𝗥': 2784583082,
-#     '𝘼𝙇𝙀𝙓 𝙓𝘼𝙐𝙐𝙎𝘿 𝘾𝙃𝘼𝙎𝙀𝙍 ➤': 2784583083,
-#     'FOREX EMPIRE': 2784583084,
-#     'GBPUSD+USDJPY(GOLD) SIGNALS': 2784583085,
-#     'Loi\'s Gold TradingRoom': 2784583086,
-#     'DENMARKPFOREX': 2784583087,
-#     'Gold Snipers Fx - Free Gold Signals': 2784583088,
-#     '𝐆𝐎𝐋𝐃 𝐓𝐑𝐀𝐃𝐈𝐍𝐆 𝐀𝐂𝐀𝐃𝐄𝐌𝐘': 2784583089,
-#     'Forex Scalping Strategy 📈': 2784583090,
-#     'Mr Beast Gold': 2784583091,
-#     'Areval Forex™': 2784583092,
-#     'FX UNIQUE TRADE 😍😍😍': 2784583093,
-#     '🍀KING GOLD FOREX🍀🍀': 2784583094,
-#     'King Of Gold⚡️': 2784583095,
-#     'GOLD MASTER': 2784583096,
-#     'FOREX TRADING SIGNAL(free)': 2784583097,
-#     'XAUUSD GBPUSD': 2784583098,
-#     'Chef Hazzim Scalping Maut🏆': 2784583099,
-#     'Exnees account manager': 2784583100,
-#     '𝙂𝙤𝙡𝙙 𝘽𝙡𝙪𝙚 𝙥𝙞𝙥𝙨 ®': 2784583101,
-#     'MXGOLDTRADE': 2784583102,
-#     'FOREX CHAMPION': 2784583103,
-#     'Forex Signals🔥💰 XAUUSD': 2784583104,
-#     '🔰PREMIUM Fx Signals💯': 2784583105,
-#     '𝐅𝐎𝐑𝐄𝐗 𝐕𝐈𝐏 𝐓𝐑𝐀𝐃𝐈𝐍𝐆™ ⚡️': 2784583106,
-#     'Daily Forex Signals': 2784583107,
-#     'APEX BULL FO®EX SIGNALS (free)': 2784583108,
-#     'Barclays Forex®': 2784583109,
-#     'GOLD FX SIGNALS': 2784583110,
-#     '𝐂𝐀𝐏𝐓𝐀𝐈𝐍 𝐅𝐎𝐑𝐄𝐗 𝐓𝐑𝐀𝐃𝐈𝐍𝐆': 2784583111,
-#     'Gold signal killer pips': 2784583112
-# }
 
 # List of symbols to look for
-symbols = ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD']  # Add more symbols as needed
+symbols = ['XAUUSD', 'GOLD']  # Add more symbols as needed
 #'BTCUSD', spread is te hoog
+#, 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD' Focus net op GOUD
 
 # Dictionary to track counts and timestamps
 trade_tracker = {}
 
-
+def print_to_console_and_file(message):
+    with open(os.path.join(DIRECTORY, "TelegramOutput.txt"), "a", encoding="utf-8") as outputfile:
+        print(message, file=outputfile)  # Print to the file
+    print(message)  # Print to the console
 
 
 def send_telegram_message(chat_id, message):
@@ -99,10 +66,10 @@ def send_telegram_message(chat_id, message):
     return response.json()
 
 def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
-    print(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
+    print_to_console_and_file(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
-        print(f"Symbol {symbol} not found")
+        print_to_console_and_file(f"Symbol {symbol} not found")
         return False
 
     if trade_type == "Buy Limit":
@@ -116,13 +83,13 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
         order_type = mt5.ORDER_TYPE_SELL
         price = symbol_info.bid
     else:
-        print(f"Unsupported trade type: {trade_type}")
+        print_to_console_and_file(f"Unsupported trade type: {trade_type}")
         return False
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
-        "volume": symbol_info.volume_min,
+        "volume": float(lotSizeToUse),
         "type": order_type,
         "price": float(price),
         "tp": float(tp),
@@ -133,10 +100,10 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
 
     order_result = mt5.order_send(request)
     if order_result.retcode != mt5.TRADE_RETCODE_DONE:
-        print("Error placing order:", order_result.comment)
+        print_to_console_and_file("Error placing order:" + order_result.comment)
         return False
     else:
-        print("Order placed successfully")
+        print_to_console_and_file("Order placed successfully")
         return True
 
 
@@ -149,7 +116,7 @@ async def process_all_group_messages(start_date, session):
                 break
 
     if not entities:
-        print(f"Error: Could not find any of the groups. Please check the group names.")
+        print_to_console_and_file(f"Error: Could not find any of the groups. Please check the group names.")
         return
 
     last_message_ids = {group_name: 0 for group_name in entities}
@@ -179,9 +146,9 @@ async def process_all_group_messages(start_date, session):
                         if latest_message.message is not None:  # Check if the message is not None
                             message_text = latest_message.message.upper()  # Convert message to uppercase
                             message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
-                            print(f'--------------{group_name}-------------------')
-                            print(f"{group_name}: {message_text} at {message_date_str}")
-                            print('---------------------------------')
+                            print_to_console_and_file(f'--------------{group_name}-------------------')
+                            print_to_console_and_file(f"{group_name}: {message_text} at {message_date_str}")
+                            print_to_console_and_file('---------------------------------')
                             
                             def parse_message(text):
                                 trade_type = None
@@ -211,20 +178,25 @@ async def process_all_group_messages(start_date, session):
                                     symbol = "XBRUSD"
                                 elif symbol == "XAUUSD":
                                     symbol = "GOLD"
-                                    
-                                sl_line = [line for line in text.split('\n') if 'SL' in line or 'SL‼️' in line]
+
+                                # Find stop loss lines
+                                sl_keywords = ['SL', 'STOP LOSS', 'STOPLOSS']
+                                sl_line = [line for line in text.split('\n') if any(kw in line for kw in sl_keywords)]
                                 sl = sl_line[0].split(':')[-1].strip() if sl_line else None
                                 sl = re.sub(r'[^\d.]', '', sl) if sl else None  # Keep only numeric characters and dot
 
                                 # Remove any leading periods
                                 if sl and sl.startswith('.'):
                                     sl = sl[1:]
-                                    
-                                tp_lines = [line for line in text.split('\n') if 'TP' in line]
+
+                                # Find take profit lines
+                                tp_keywords = ['TP', 'TAKE PROFIT', 'TAKEPROFIT']
+                                tp_lines = [line for line in text.split('\n') if any(kw in line for kw in tp_keywords)]
                                 tps = [
                                     re.sub(r'^\.', '', re.sub(r'[^\d.]', '', line.split(':')[-1].strip()))
                                     for line in tp_lines
                                 ]
+
                                 return trade_type, symbol, sl, tps, price
 
                             async def parse_and_send_messages(message_text):
@@ -258,29 +230,29 @@ async def process_all_group_messages(start_date, session):
                                                     del trade_tracker[k]
                                             
                                             if trade_tracker[key]['count'] > sameSignalCount:
-                                                print(f'------------------More than {sameSignalCount} same symbol----------------------------')
-                                                print(f"Threshold exceeded for {symbol} {trade_type}")
-                                                print('----------------------------------------------')
+                                                print_to_console_and_file(f'------------------More than {sameSignalCount} same symbol----------------------------')
+                                                print_to_console_and_file(f"Threshold exceeded for {symbol} {trade_type}")
+                                                print_to_console_and_file('----------------------------------------------')
                                                 trade_tracker[key]['count'] = 0
                                                 trade_tracker[key]['groups'].clear()
 
-                                                #This wil place the Trade from the Originator
+                                                # This will place the Trade from the Originator
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                         message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
-                                                            print("Failed to place order")
+                                                            print_to_console_and_file("Failed to place order")
                                                 
-                                                #This wil place the Trade under JDB Copy Trading Counter
+                                                # This will place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                                         message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, groups_info.get('JDB Copy Trading Counter')):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
-                                                            print("Failed to place order")
+                                                            print_to_console_and_file("Failed to place order")
                                             else:
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
@@ -288,19 +260,20 @@ async def process_all_group_messages(start_date, session):
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
-                                                            print("Failed to place order")
-                                                       
+                                                            print_to_console_and_file("Failed to place order")
+                                                        
                                 except IndexError:
-                                    print(f"Error parsing message from {group_name}: {message_text}")
+                                    print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
                                 except Exception as e:
-                                    print(f"Unexpected error: {e}")
+                                    print_to_console_and_file(f"Unexpected error: {e}")
+
 
                             await parse_and_send_messages(message_text)
 
                             last_message_ids[group_name] = latest_message.id
 
         except Exception as e:
-            print(f"Error processing group messages: {e}")
+            print_to_console_and_file(f"Error processing group messages: {e}")
 
         # Wait for 10 seconds before checking again
         await asyncio.sleep(10)
@@ -325,12 +298,12 @@ def populate_telegram_groups():
 
 async def updateTelegramGroups():
     while True:
-        print("Telegram groups updated")  # Replace this with the actual function you want to run
+        print_to_console_and_file("Telegram groups updated")  # Replace this with the actual function you want to run
         populate_telegram_groups()
         await asyncio.sleep(3600)  # Sleep for 5 seconds for testing, change to 3600 for 1 hour
 
 def InitializeAccounts():
-    print("----------InitializeAccounts---------")
+    print_to_console_and_file("----------InitializeAccounts---------")
 
     DB_CONNECTION = dbPath
 
@@ -347,16 +320,16 @@ def InitializeAccounts():
         instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
 
         if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
-            print("Failed to initialize MT5 terminal from", instance_path)
-            print("Error:", mt5.last_error())
+            print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
+            print_to_console_and_file(f"Error: {mt5.last_error()}")
         else:
-            print("MT5 initialized successfully for account ID:", row[0])
+            print_to_console_and_file(f"MT5 initialized successfully for account ID: {row[0]}")
 
     db_conn.close()
 
 #Function call on startup
 populate_telegram_groups()
-print(groups_info)
+print_to_console_and_file(groups_info)
 
 async def main():
 
@@ -364,7 +337,7 @@ async def main():
 
     InitializeAccounts()
     await client.start(phone)
-    print("Client Created")
+    print_to_console_and_file("Client Created")
 
     # Start date to filter messages
     start_date = datetime.now(timezone.utc)
