@@ -51,7 +51,7 @@ symbols = ['XAUUSD', 'GOLD']  # Add more symbols as needed
 trade_tracker = {}
 
 def print_to_console_and_file(message):
-    with open(PATH + "/TelegramOutput.txt", "a") as outputfile:
+    with open(os.path.join(DIRECTORY, "TelegramOutput.txt"), "a", encoding="utf-8") as outputfile:
         print(message, file=outputfile)  # Print to the file
     print(message)  # Print to the console
 
@@ -100,7 +100,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number):
 
     order_result = mt5.order_send(request)
     if order_result.retcode != mt5.TRADE_RETCODE_DONE:
-        print_to_console_and_file("Error placing order:", order_result.comment)
+        print_to_console_and_file("Error placing order:" + order_result.comment)
         return False
     else:
         print_to_console_and_file("Order placed successfully")
@@ -320,10 +320,10 @@ def InitializeAccounts():
         instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
 
         if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
-            print_to_console_and_file("Failed to initialize MT5 terminal from", instance_path)
-            print_to_console_and_file("Error:", mt5.last_error())
+            print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
+            print_to_console_and_file(f"Error: {mt5.last_error()}")
         else:
-            print_to_console_and_file("MT5 initialized successfully for account ID:", row[0])
+            print_to_console_and_file(f"MT5 initialized successfully for account ID: {row[0]}")
 
     db_conn.close()
 
