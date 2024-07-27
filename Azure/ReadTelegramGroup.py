@@ -15,17 +15,20 @@ DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
 lotSizeToUse = 0.01
+preProd = True
+takeAllTrades = True
 
 # Your api_id and api_hash from my.telegram.org
 #JDB
-api_id = '21789309'
-api_hash = '25cfde9a425a3658172d011e45e81a2c'
-phone = '+2784583071'  # e.g. +123456789
-
-# #JW
-# api_id = '21265406'
-# api_hash = 'aed729c24e62f0aa55e263ca153bbc3e'
-# phone = '+27744183636'  # e.g. +123456789
+if preProd:
+    api_id = '21789309'
+    api_hash = '25cfde9a425a3658172d011e45e81a2c'
+    phone = '+2784583071'  # e.g. +123456789
+else:
+    #JW
+    api_id = '21265406'
+    api_hash = 'aed729c24e62f0aa55e263ca153bbc3e'
+    phone = '+27744183636'  # e.g. +123456789
 
 
 bot_token = '6695292881:AAHoEsUyrgkHAYqsbXcn9XWN9Y7nNTi5Jy4'
@@ -239,28 +242,45 @@ async def process_all_group_messages(start_date, session):
                                                 # This will place the Trade from the Originator
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if preProd:
+                                                            message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        else:
+                                                            message = f"PROD!!!!\nTRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
                                                             print_to_console_and_file("Failed to place order")
+                                                    if not takeAllTrades:
+                                                        break
                                                 
                                                 # This will place the Trade under JDB Copy Trading Counter
                                                 for i, tp in enumerate(tps):
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if preProd:
+                                                            message = f"TRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        else:
+                                                            message = f"PROD!!!!\nTRADE MADE BY COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, groups_info.get('JDB Copy Trading Counter')):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
                                                             print_to_console_and_file("Failed to place order")
+                                                        
+                                                    if not takeAllTrades:
+                                                        break
                                             else:
                                                 for i, tp in enumerate(tps):    
                                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                                        message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        if preProd:
+                                                            message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                        else:
+                                                            message = f"PROD!!!!\nActual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
                                                             print_to_console_and_file("Failed to place order")
+                                                        
+                                                    if not takeAllTrades:
+                                                        break
                                                         
                                 except IndexError:
                                     print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
