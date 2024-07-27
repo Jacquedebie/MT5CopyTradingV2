@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = False
+debug = True
 
 if(debug):
     ADDRESS = "127.0.0.1"
@@ -48,6 +48,8 @@ from datetime import datetime
 
 async def RequestHandler(json_string, writer):
     
+    print(f"Received data: {json_string}")
+
     client_id = client_accounts.get(writer, "")
 
     AddCommunication(client_id, json_string)
@@ -64,7 +66,16 @@ async def RequestHandler(json_string, writer):
             else:
                 print("No history returned")
         elif action == "Authenticate":
+            print("Authenticate")
             await ClientConnected(writer, json_data)  # Ensure to await async function
+        elif action == "Server_CloseTrade":
+            await Server_CloseTrade(json_data)
+        elif action == "Server_OpenTrade":
+            await Server_OpenTrade(json_data)
+        elif action == "Server_TradeHistory":
+            await Server_TradeHistory(json_data)
+        elif action == "Server_UpdateTrade":
+            await Server_UpdateTrade(json_data)
         elif action == "Ping":
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # Check if Active account
@@ -132,8 +143,10 @@ async def AccountHistory(writer, json_data):
             
             InsertTradeHistory(trade_data)
 
-
 async def ClientConnected(writer, json_data):
+
+    print("Client connected")
+
     try:
         account_id = json_data.get('AccountId')
         user_Email = json_data.get('Email')
@@ -216,6 +229,7 @@ async def ClientConnected(writer, json_data):
         print("Received data is not valid JSON")
 
 async def handle_client(reader, writer):
+
     addr = writer.get_extra_info('peername')
 
     clients.add(writer)
@@ -274,13 +288,38 @@ async def broadcast(message):
 
     AddCommunication(str(list(client_accounts.values())), message)
 
-async def DirectBroadcast(writer,message,clientID):
-    
-
-    writer.write(message.encode('utf-8'))
+async def DirectBroadcast(writer, message, clientID):
+    encoded_message = message.encode('utf-8')
+    writer.write(encoded_message)
     await writer.drain()
 
+    # Print the byte size of the message
+    print(f"Message byte size: {len(encoded_message)}")
+
     AddCommunication(clientID, message)
+
+#SERVER CALLS
+
+async def Server_OpenTrade(json_data):
+    print("Server_OpenTrade")
+    print(json_data)
+
+async def Server_TradeHistory(json_data):
+    print("Server_TradeHistory")
+    update_tradeServerHistory(json_data)
+    print(json_data)
+
+async def Server_CloseTrade(json_data):
+    print("Server_CloseTrade")
+    
+    insert_tradeServerClose(json_data)
+    print(json_data)
+
+async def Server_UpdateTrade(json_data):
+    print("Server_UpdateTrade")
+    print(json_data)
+
+
 
 #----------------  MT5 Listener  ----------------
 
@@ -652,6 +691,94 @@ def InsertTrade(client_id, trade_data):
     )
     
     db_conn.commit()
+    db_conn.close()
+
+#Server queries
+
+def insert_tradeServerClose(data):
+    # Directly access dictionary elements
+    ticket = data.get('Ticket')
+    symbol = data.get('Symbol')
+    trade_type = data.get('Type')
+    max_drawdown = data.get('maxDrawdown')
+    max_profit = data.get('maxProfit')
+
+    # Print the values to verify they are correct
+    print(f"Ticket: {ticket}, Symbol: {symbol}, Type: {trade_type}, Max Drawdown: {max_drawdown}, Max Profit: {max_profit}")
+
+    # Connect to the SQLite database
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    
+    # Insert the trade into the database
+    try:
+        db_cursor.execute("""
+            INSERT INTO tbl_trade (
+                tbl_trade_ticket, 
+                tbl_trade_symbol, 
+                tbl_trade_type, 
+                tbl_trade_drawdown, 
+                tbl_trade_profit
+            ) VALUES (?, ?, ?, ?, ?)
+        """, (ticket, symbol, trade_type, max_drawdown, max_profit))
+        
+        # Commit the transaction
+        db_conn.commit()
+        print("Trade inserted successfully.")
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        db_conn.rollback()
+    finally:
+        # Close the database connection
+        db_conn.close()
+
+def update_tradeServerHistory(data):
+
+    trades = data.get('Trades', [])
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+
+    for trade in trades:
+
+        ticket = int(trade.get('Ticket'))
+
+        try:
+            db_cursor.execute("""
+                UPDATE tbl_trade SET
+                    tbl_trade_account = ?, 
+                    tbl_trade_magic = ?, 
+                    tbl_trade_volume = ?, 
+                    tbl_trade_profit = ?, 
+                    tbl_trade_symbol = ?, 
+                    tbl_trade_billed = ?, 
+                    tbl_trade_time = ?, 
+                    tbl_trade_type = ?, 
+                    tbl_trade_swap = ?
+
+                WHERE tbl_trade_ticket = ?
+            """, 
+            (trade.get('AccountID'),
+             trade.get('Magic'), 
+             trade.get('Volume'), 
+             trade.get('Profit'), 
+             trade.get('Symbol'), 
+             0,#billed, 
+             trade.get('PositionTime'), 
+             trade.get('Type'), 
+             trade.get('Swap'), 
+             ticket))
+            
+            db_conn.commit()
+
+            print(f"Trade with Ticket {ticket} updated successfully.")
+            
+        except sqlite3.Error as e:
+            print(f"An error occurred while updating trade with Ticket {ticket}: {e}")
+            db_conn.rollback()
+
     db_conn.close()
 
 def IsAccountActive(accountNumber):
