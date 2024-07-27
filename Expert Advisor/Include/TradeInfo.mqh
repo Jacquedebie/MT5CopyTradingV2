@@ -13,6 +13,7 @@ struct TradeInfo
    double profit;       
    string symbol;
    datetime openTime;
+   double trailingSl;
 };
 
 //-------------INSERT-------------
@@ -180,6 +181,22 @@ string GetTicketByPositionID(ulong positionID, const TradeInfo &trades[])
     return "";
 }
 
+string GetTrailinSlByPositionID(ulong positionID, const TradeInfo &trades[])
+{
+    int size = ArraySize(trades);
+    
+    for(int i = 0; i < size; i++)
+    {
+        if(trades[i].positionID == positionID)
+        {
+            return trades[i].trailingSl;
+        }
+    }
+
+    PrintFormat("Trade with PositionID %d not found.", positionID);
+    return "";
+}
+
 
 //-------------UPDATE-------------
 
@@ -239,7 +256,6 @@ void UpdateTradeProfit(ulong positionID, double profit, TradeInfo &trades[])
         {
             tradeFound = true;
             trades[i].profit = profit; // Update profit
-            PrintFormat("Updated Profit: %.2f", trades[i].profit);
             return;
         }
     }
@@ -249,7 +265,7 @@ void UpdateTradeProfit(ulong positionID, double profit, TradeInfo &trades[])
     }
 }
 
-void UpdateTradeDetailsByPosition(ulong positionID, ulong ticketNr,ulong type, double openPrice, double volume, string &symbol, datetime openTime, TradeInfo &trades[])
+void UpdateTradeDetailsByPosition(ulong positionID, ulong ticketNr,ulong type, double openPrice, double volume, string &symbol, datetime openTime,double trailingSl, TradeInfo &trades[])
 {
    int size = ArraySize(trades);
    for(int i = 0; i < size; i++)
@@ -262,6 +278,7 @@ void UpdateTradeDetailsByPosition(ulong positionID, ulong ticketNr,ulong type, d
          trades[i].volume = volume;
          trades[i].symbol = symbol;
          trades[i].openTime = openTime;
+         trades[i].trailingSl = trailingSl;
 
          PrintFormat("Trade with PositionID %d updated with new details.", positionID);
          return;

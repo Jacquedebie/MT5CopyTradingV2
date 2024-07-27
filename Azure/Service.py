@@ -286,40 +286,58 @@ async def broadcast(message):
             client.write(message.encode('utf-8'))
             await client.drain()
 
-    AddCommunication(str(list(client_accounts.values())), message)
-
+    
 async def DirectBroadcast(writer, message, clientID):
     encoded_message = message.encode('utf-8')
     writer.write(encoded_message)
     await writer.drain()
-
-    # Print the byte size of the message
-    print(f"Message byte size: {len(encoded_message)}")
 
     AddCommunication(clientID, message)
 
 #SERVER CALLS
 
 async def Server_OpenTrade(json_data):
-    print("Server_OpenTrade")
-    print(json_data)
+
+    OpenTrade_json = {
+        "Code": "OpenTrade",
+        "Symbol": json_data['Symbol'],
+        "Type": json_data['Type'],
+        "Open Price": json_data['Open Price'],
+        "SL": json_data['SL'],  
+        "TP": json_data['TP'],  
+        "Comment": json_data['Comment'],
+        "Ticket": json_data['Ticket']
+    }
+    
+    ClientOpenTrade_json = json.dumps(OpenTrade_json)
+    await broadcast(ClientOpenTrade_json)
+
+    insert_tradeServer(json_data)
+    AddCommunication(str(list(client_accounts.values())), ClientOpenTrade_json)
+
+async def Server_CloseTrade(json_data):
+
+    UpdateTrade_json = {
+        "Code": "CloseTrade",
+        "Ticket": json_data['Ticket']
+    }
+    
+    ClientUpdateTrade_json = json.dumps(UpdateTrade_json)
+    await broadcast(ClientUpdateTrade_json)
+    
+    update_tradeServerClose(json_data)
+    AddCommunication(str(list(client_accounts.values())), ClientUpdateTrade_json)
 
 async def Server_TradeHistory(json_data):
     print("Server_TradeHistory")
     update_tradeServerHistory(json_data)
     print(json_data)
 
-async def Server_CloseTrade(json_data):
-    print("Server_CloseTrade")
-    
-    insert_tradeServerClose(json_data)
-    print(json_data)
-
 async def Server_UpdateTrade(json_data):
     print("Server_UpdateTrade")
     print(json_data)
 
-
+#END SERVER CALLS
 
 #----------------  MT5 Listener  ----------------
 
@@ -328,90 +346,6 @@ class AccountList:
         self.accountList_Number = accountList_Number
         self.accountList_Name = accountList_Name
 
-def check_for_new_trades(loop):
-    print("Checking for opened trades")
-
-    while True:
-        current_time = datetime.now()
-
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-
-        tradesa = mt5.positions_get()
-        tradesb = mt5_Client_1.positions_get()
-
-        if tradesa:
-            for trade in tradesa:
-                if trade.ticket not in sent_trades:
-                    sent_trades.add(trade.ticket)
-
-                    DB_CONNECTION = dbPath
-                    db_conn = sqlite3.connect(DB_CONNECTION)
-                    db_cursor = db_conn.cursor()
-                    db_cursor.execute("INSERT INTO tbl_ActiveTrade (tbl_ActiveTrade_TicketNr) VALUES (?)", (trade.ticket,))
-                    db_conn.commit()
-                    db_conn.close()
-
-                    trade_details = {
-                        "Code": "OpenTrade",
-                        "Symbol": trade.symbol,
-                        "Ticket": trade.ticket,
-                        "Time": trade.time,
-                        "Time Update": trade.time_update,
-                        "Type": trade.type,
-                        "Magic": trade.magic,
-                        "Identifier": trade.identifier,
-                        "Reason": trade.reason,
-                        "Volume": trade.volume,
-                        "Open Price": trade.price_open,
-                        "SL": trade.sl,
-                        "TP": trade.tp,
-                        "Current Price": trade.price_current,
-                        "Swap": trade.swap,
-                        "Profit": trade.profit,
-                        "Comment": trade.comment,
-                        "External ID": trade.external_id
-                    }
-                    trade_details_json = json.dumps(trade_details)
-                    asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
-                    
-        if tradesb is None:
-            print("No trades found or error in fetching trades.")
-        elif tradesb:
-            for trade in tradesb:
-                if trade.ticket not in sent_trades:
-                    sent_trades.add(trade.ticket)
-
-                    DB_CONNECTION = dbPath
-                    db_conn = sqlite3.connect(DB_CONNECTION)
-                    db_cursor = db_conn.cursor()
-                    db_cursor.execute("INSERT INTO tbl_ActiveTrade (tbl_ActiveTrade_TicketNr) VALUES (?)", (trade.ticket,))
-                    db_conn.commit()
-                    db_conn.close()
-
-                    trade_details = {
-                        "Code": "OpenTrade",
-                        "Symbol": trade.symbol,
-                        "Ticket": trade.ticket,
-                        "Time": trade.time,
-                        "Time Update": trade.time_update,
-                        "Type": trade.type,
-                        "Magic": trade.magic,
-                        "Identifier": trade.identifier,
-                        "Reason": trade.reason,
-                        "Volume": trade.volume,
-                        "Open Price": trade.price_open,
-                        "SL": trade.sl,
-                        "TP": trade.tp,
-                        "Current Price": trade.price_current,
-                        "Swap": trade.swap,
-                        "Profit": trade.profit,
-                        "Comment": trade.comment,
-                        "External ID": trade.external_id
-                    }
-                    trade_details_json = json.dumps(trade_details)
-                    asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
-        
-        time.sleep(1)  # Add a sleep to avoid high CPU usage
 
 def check_for_modify_trades(loop):
     print("Checking for Modify trades")
@@ -476,38 +410,6 @@ def modify_position(account,order_number, symbol, new_stop_loss,take_Profit, loo
     else:
         print_to_console_and_file("modify_position account Last MT5 Error : " + order_result.comment)
         return False
-
-def check_for_closed_trades(loop):
-    print("Checking for closed trades")
-
-    while True:
-        current_time = datetime.now()
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    
-        DB_CONNECTION = dbPath
-        db_conn = sqlite3.connect(DB_CONNECTION)
-        db_cursor = db_conn.cursor()
-        db_cursor.execute("SELECT tbl_ActiveTrade_TicketNr FROM tbl_ActiveTrade")
-        trades_listArray = [row[0] for row in db_cursor.fetchall()]
-        
-        for trade in trades_listArray:
-            if is_position_closed(trade):
-                trade_details = {
-                                    "Code": "CloseTrade",
-                                    "Ticket": trade
-                                }
-
-                trade_details_json = json.dumps(trade_details)
-
-                asyncio.run_coroutine_threadsafe(broadcast(trade_details_json), loop)
-                db_cursor.execute("DELETE FROM tbl_ActiveTrade WHERE tbl_ActiveTrade_TicketNr = ?", (trade,))
-                db_conn.commit()
-                
-                if trade in tracked_trades:
-                    del tracked_trades[trade]
-
-        db_conn.close()
-        time.sleep(1)  
 
 def is_position_closed(position_ticket):
     positions = mt5.positions_get()
@@ -656,81 +558,70 @@ def InsertTradeHistory(trade_data):
 
     db_conn.close()
 
-def InsertTrade(client_id, trade_data):
-    print(trade_data)
-
-    # Extracting the necessary fields from the JSON
-    trade_ticket = trade_data.get('Ticket')
-    trade_magic = trade_data.get('MagicNumber')
-    trade_volume = float(trade_data.get('Volume', 0))
-    trade_profit = float(trade_data.get('Profit', 0))
-    trade_symbol = trade_data.get('Symbol')
-    trade_time = trade_data.get('OrderTime')
-
-    DB_CONNECTION = dbPath
-    db_conn = sqlite3.connect(DB_CONNECTION)
-    db_cursor = db_conn.cursor()
-    
-    try:
-        trade_time_converted = datetime.strptime(trade_time, '%Y.%m.%d %H:%M').strftime('%Y-%m-%d %H:%M:16')
-    except ValueError:
-        trade_time_converted = trade_time  # If already in correct format or unrecognized, use as is
-        
-    db_cursor.execute("""
-        INSERT INTO tbl_trade (
-            tbl_trade_account,
-            tbl_trade_ticket, 
-            tbl_trade_magic, 
-            tbl_trade_volume, 
-            tbl_trade_profit, 
-            tbl_trade_symbol,
-            tbl_trade_billed,
-            tbl_trade_time
-        ) VALUES (?,?, ?, ?, ?, ?, ?,?)""", 
-        (client_id, trade_ticket, trade_magic, trade_volume, trade_profit, trade_symbol, 0, trade_time_converted)
-    )
-    
-    db_conn.commit()
-    db_conn.close()
-
 #Server queries
 
-def insert_tradeServerClose(data):
-    # Directly access dictionary elements
-    ticket = data.get('Ticket')
-    symbol = data.get('Symbol')
-    trade_type = data.get('Type')
-    max_drawdown = data.get('maxDrawdown')
-    max_profit = data.get('maxProfit')
-
-    # Print the values to verify they are correct
-    print(f"Ticket: {ticket}, Symbol: {symbol}, Type: {trade_type}, Max Drawdown: {max_drawdown}, Max Profit: {max_profit}")
-
-    # Connect to the SQLite database
+def insert_tradeServer(data):
     DB_CONNECTION = dbPath
     db_conn = sqlite3.connect(DB_CONNECTION)
     db_cursor = db_conn.cursor()
     
-    # Insert the trade into the database
     try:
+        # Parse the JSON string into a dictionary
+        data_dict = data
+
+        print(data_dict)
+        
         db_cursor.execute("""
             INSERT INTO tbl_trade (
                 tbl_trade_ticket, 
-                tbl_trade_symbol, 
-                tbl_trade_type, 
-                tbl_trade_drawdown, 
-                tbl_trade_profit
-            ) VALUES (?, ?, ?, ?, ?)
-        """, (ticket, symbol, trade_type, max_drawdown, max_profit))
+                tbl_trade_account
+            ) VALUES (?, ?)
+        """, 
+        (
+         data_dict.get('Ticket'), 
+         data_dict.get('AccountId')
+        ))
         
-        # Commit the transaction
         db_conn.commit()
         print("Trade inserted successfully.")
+
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        db_conn.rollback()
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+    finally:
+        db_conn.close()
+
+def update_tradeServerClose(data):
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    
+    try:
+        db_cursor.execute("""
+            UPDATE tbl_trade
+            SET tbl_trade_symbol = ?, 
+                tbl_trade_type = ?, 
+                tbl_trade_drawdown = ?, 
+                tbl_trade_maxProfit = ?
+            WHERE tbl_trade_ticket = ? AND tbl_trade_profit IS NULL
+        """, 
+        (
+         data.get('Symbol'), 
+         data.get('Type'), 
+         data.get('maxDrawdown'), 
+         data.get('maxProfit'),
+         data.get('Ticket') 
+        ))
+        
+        db_conn.commit()
+        print("Trade updated successfully.")
+
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         db_conn.rollback()
     finally:
-        # Close the database connection
         db_conn.close()
 
 def update_tradeServerHistory(data):
@@ -748,7 +639,6 @@ def update_tradeServerHistory(data):
         try:
             db_cursor.execute("""
                 UPDATE tbl_trade SET
-                    tbl_trade_account = ?, 
                     tbl_trade_magic = ?, 
                     tbl_trade_volume = ?, 
                     tbl_trade_profit = ?, 
@@ -758,10 +648,9 @@ def update_tradeServerHistory(data):
                     tbl_trade_type = ?, 
                     tbl_trade_swap = ?
 
-                WHERE tbl_trade_ticket = ?
+                WHERE tbl_trade_ticket = ? AND tbl_trade_drawdown IS NOT NULL
             """, 
-            (trade.get('AccountID'),
-             trade.get('Magic'), 
+            (trade.get('Magic'), 
              trade.get('Volume'), 
              trade.get('Profit'), 
              trade.get('Symbol'), 
@@ -774,12 +663,14 @@ def update_tradeServerHistory(data):
             db_conn.commit()
 
             print(f"Trade with Ticket {ticket} updated successfully.")
-            
+
         except sqlite3.Error as e:
             print(f"An error occurred while updating trade with Ticket {ticket}: {e}")
             db_conn.rollback()
 
     db_conn.close()
+
+#End Server queries
 
 def IsAccountActive(accountNumber):
     for account, active in account_status_list:
@@ -950,29 +841,18 @@ async def main_async():
     
 
 def main():
+
     InitializeAccounts()
-
-    # script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
-    
-    # # Run the script
-    # result = subprocess.run(['python', script_path], capture_output=True, text=True)
-
-    # # Print the output of the script
-    # print("resutls : " + result.stdout)
 
     loop = asyncio.get_event_loop()
 
-    check_open_trade_thread = threading.Thread(target=check_for_new_trades, args=(loop,))
-    check_open_trade_thread.start()
+    #Trailing SL not currently implemented for testing uncoment when we use it again ! 
 
-    check_close_trade_thread = threading.Thread(target=check_for_closed_trades, args=(loop,))
-    check_close_trade_thread.start()
+    #check_modify_trade_thread = threading.Thread(target=check_for_modify_trades, args=(loop,))
+    #check_modify_trade_thread.start()
 
-    check_modify_trade_thread = threading.Thread(target=check_for_modify_trades, args=(loop,))
-    check_modify_trade_thread.start()
-
-    check_TradeDetail_thread = threading.Thread(target=GetTradeDetails, args=(loop,))
-    check_TradeDetail_thread.start()
+    #check_TradeDetail_thread = threading.Thread(target=GetTradeDetails, args=(loop,))
+    #check_TradeDetail_thread.start()
 
     check_AccountList_thread = threading.Thread(target=update_account_status_list, args=(loop,))
     check_AccountList_thread.start()
@@ -988,28 +868,7 @@ if __name__ == "__main__":
     DIRECTORY = os.path.dirname(os.path.dirname(PATH))
     dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
-    # def run_script(script_path):
-    #     subprocess.run(['python', script_path])
-
-    # # Path to the other script
-    # script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
-
-    # # Create a thread to run the script
-    # script_thread = threading.Thread(target=run_script, args=(script_path,))
-
-    # # Start the thread
-    # script_thread.start()
-
-    # # Continue with the main program
-    # print('The script is running in a separate thread.')
-
-    # # Optional: Wait for the thread to finish if needed
-    # script_thread.join()
-
-    # Path to the script
     script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
-
-    # # Command to open a new command prompt and run the script
     subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
 
     main()

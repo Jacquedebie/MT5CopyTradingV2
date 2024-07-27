@@ -5,7 +5,8 @@
 
 CTrade trade;
 
-string Address = "127.0.0.1";
+string Address = "172.174.154.125";
+//string Address = "127.0.0.1";
 int Port = 9094;
 bool ExtTLS = false;
 int socket = INVALID_HANDLE;
@@ -38,7 +39,7 @@ int OnInit()
     }
     
     //Scheduled tasks
-    EventSetTimer(3600);
+    EventSetTimer(60);
     
     return INIT_SUCCEEDED;
 }
@@ -79,6 +80,7 @@ void OnTick()
                                             PositionGetDouble(POSITION_VOLUME),
                                             PositionGetString(POSITION_SYMBOL),
                                             PositionGetInteger(POSITION_TIME),
+                                            PositionGetDouble(POSITION_SL),
                                             trades);  
          }
          else
@@ -111,6 +113,43 @@ void OnTick()
    }
 }
 
+void OnTimer()
+{
+   int targetHour1 = 9; 
+   int targetMinute1 = 0; 
+
+   int intervalUpdateTrades = 60;  
+   int intervalPing = 10; 
+
+   datetime currentTime = TimeCurrent();
+   MqlDateTime currentTimeStruct;
+   TimeToStruct(currentTime, currentTimeStruct);
+
+   int currentHour = currentTimeStruct.hour;
+   int currentMinute = currentTimeStruct.min;
+
+   if(currentHour == targetHour1 && currentMinute == targetMinute1)
+   {
+      Print("Executing first script at: ", TimeToString(currentTime, TIME_MINUTES));
+   }
+
+   if(currentMinute % intervalUpdateTrades == 0)
+   {
+      UpdateTradesFromHistory();
+   }
+   
+   if(currentMinute % intervalPing == 0)
+   {
+      Print("Ping");
+      //authenticated = false;
+      
+      string pingMessage = "{\"Code\":\"PingFromServer\"}";
+      HTTPSend(socket, pingMessage);
+      
+   }
+}
+
+
 
 void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
 {
@@ -129,6 +168,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
                   
            CJAVal authenticateObj;
            authenticateObj["Code"] = "Server_CloseTrade";
+           authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
            authenticateObj["Ticket"] = GetTicketByPositionID(trans.position, trades);
            authenticateObj["Symbol"] = GetSymbolByPositionID(trans.position, trades);
            authenticateObj["Type"] = GetTypeByPositionID(trans.position, trades); 
@@ -153,14 +193,15 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
             
                 CJAVal authenticateObj;
                 authenticateObj["Code"] = "Server_OpenTrade";
+                authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
                 authenticateObj["Ticket"] = IntegerToString(PositionGetInteger(POSITION_IDENTIFIER));
                 authenticateObj["Symbol"] = PositionGetString(POSITION_SYMBOL);
                 authenticateObj["Type"] = PositionGetInteger(POSITION_TYPE);
-                authenticateObj["Open Price"] = PositionGetDouble(POSITION_PRICE_OPEN);
-                authenticateObj["SL"] = PositionGetDouble(POSITION_SL);
-                authenticateObj["TP"] = PositionGetDouble(POSITION_TP);     
+                authenticateObj["Open Price"] = PositionGetDouble(POSITION_PRICE_OPEN);     
                 authenticateObj["Comment"] = PositionGetString(POSITION_COMMENT);
                 authenticateObj["Magic"] = IntegerToString(PositionGetInteger(POSITION_MAGIC));
+                authenticateObj["TP"] = DoubleToString(PositionGetDouble(POSITION_TP));
+                authenticateObj["SL"] = DoubleToString(PositionGetDouble(POSITION_SL));
                  
                 string OpenTrade = authenticateObj.Serialize();                      
                 HTTPSend(socket, OpenTrade);
@@ -191,6 +232,11 @@ void RequestHandler(string json)
         if (jsCode == "Authenticate")
         {
             Authenticate(json);
+        }
+        if (jsCode == "Notifications")
+        {
+            Print("Ping result");
+            Sleep(10);
         }
         else
         {
@@ -292,6 +338,7 @@ bool HTTPRecv(int socket, uint timeout)
                         // Extract complete JSON message
                         string complete_json = StringSubstr(buffer, start_pos, end_pos - start_pos + 1);
                         RequestHandler(complete_json);
+                        Print(complete_json);
 
                         // Remove processed JSON message from buffer
                         buffer = StringSubstr(buffer, end_pos + 1);
@@ -309,7 +356,6 @@ bool HTTPRecv(int socket, uint timeout)
             }
         }
 
-        Sleep(1);
     }
 
     return StringLen(buffer) > 0;
@@ -335,17 +381,14 @@ void ConnectToServer()
 
 //===================================================================================================================================
 
-void OnTimer()
-{
-    UpdateTradesFromHistory();
-}
+
 
 void UpdateTradesFromHistory()
 {
 int tradesIncluded = 15;
 
 datetime DateFrom = TimeCurrent() - 86400; 
-datetime DateTo = TimeCurrent() + 86400;
+datetime DateTo = TimeCurrent() + 2 * 86400;
 
 if (HistorySelect(DateFrom, DateTo))
 {
@@ -362,6 +405,7 @@ if (HistorySelect(DateFrom, DateTo))
         for (int i = start; i < end; i++)
         {
             ulong ticket = HistoryDealGetTicket(i);
+            ulong positionID =  HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
             ulong type = HistoryDealGetInteger(ticket, DEAL_TYPE);
             string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
             double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
@@ -370,13 +414,15 @@ if (HistorySelect(DateFrom, DateTo))
             datetime positionTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
             ulong positionMagicNumber = HistoryDealGetInteger(ticket, DEAL_MAGIC);
             double swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
+            double TP = HistoryDealGetDouble(ticket, DEAL_TP);
+            double SL = HistoryDealGetDouble(ticket, DEAL_SL);
 
             if (i > start)
                 jsonTradesArray += ",";
 
             jsonTradesArray += StringFormat(
-                "{\"Ticket\":\"%I64u\",\"Type\":\"%I64u\",\"Symbol\":\"%s\",\"Profit\":\"%.2f\",\"Volume\":\"%.2f\",\"AccountID\":\"%I64u\",\"Magic\":\"%I64u\",\"Swap\":\"%.2f\",\"PositionTime\":\"%s\"}",
-                ticket, type, symbol, profit, volume, accountID, positionMagicNumber, swap, TimeToString(positionTime, TIME_DATE | TIME_MINUTES)
+                "{\"Ticket\":\"%I64u\",\"Type\":\"%I64u\",\"Symbol\":\"%s\",\"Profit\":\"%.2f\",\"Volume\":\"%.2f\",\"AccountID\":\"%I64u\",\"Magic\":\"%I64u\",\"Swap\":\"%.2f\",\"TP\":\"%.2f\",\"SL\":\"%.2f\",\"PositionTime\":\"%s\"}",
+                positionID, type, symbol, profit, volume, accountID, positionMagicNumber, swap,TP,SL, TimeToString(positionTime, TIME_DATE | TIME_MINUTES)
             );
             
             
@@ -384,7 +430,7 @@ if (HistorySelect(DateFrom, DateTo))
 
         jsonTradesArray += "]";
 
-        string finalJsonStr = StringFormat("{\"Code\":\"AccountHistory\",\"Trades\":%s}", jsonTradesArray);
+        string finalJsonStr = StringFormat("{\"Code\":\"Server_TradeHistory\",\"Trades\":%s}", jsonTradesArray);
 
         HTTPSend(socket, finalJsonStr);
         Print("Sent JSON to server: " + finalJsonStr);
