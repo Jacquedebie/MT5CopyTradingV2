@@ -575,7 +575,7 @@ def insert_tradeServer(data):
             INSERT INTO tbl_trade (
                 tbl_trade_ticket, 
                 tbl_trade_account,
-                tbl_trade_time
+                tbl_trade_timeOpen
             ) VALUES (?, ?, ?)
         """, 
         (
@@ -606,7 +606,8 @@ def update_tradeServerClose(data):
             SET tbl_trade_symbol = ?, 
                 tbl_trade_type = ?, 
                 tbl_trade_drawdown = ?, 
-                tbl_trade_maxProfit = ?
+                tbl_trade_maxProfit = ?,
+                tbl_trade_timeClose = ?
             WHERE tbl_trade_ticket = ? AND tbl_trade_profit IS NULL
         """, 
         (
@@ -614,6 +615,7 @@ def update_tradeServerClose(data):
          data.get('Type'), 
          data.get('maxDrawdown'), 
          data.get('maxProfit'),
+         data.get('Close Time'),
          data.get('Ticket') 
         ))
         
@@ -677,25 +679,6 @@ def IsAccountActive(accountNumber):
         if account == accountNumber:
             return bool(active)
     return False
-    # try:
-    #     DB_CONNECTION = dbPath
-    #     db_conn = sqlite3.connect(DB_CONNECTION)
-    #     db_cursor = db_conn.cursor()
-    #     db_cursor.execute("SELECT tbl_user_Active FROM tbl_user WHERE tbl_user_accountNumber = ?", (accountNumber,))
-    #     rows = db_cursor.fetchall()
-    #     number_of_rows = len(rows)
-
-    #     if(number_of_rows > 0):
-    #         #convert rows[0] to bool and check for true or false
-    #         if rows[0][0] == 1:
-    #             return True
-    #         else:
-    #             return False
-    #     else:
-    #         return False
-    # except sqlite3.Error as error:
-    #     print("Error occurred:", error)
-    #     return False
 
 def GetOustandingAccountProfit(accountNumber):
     try:
