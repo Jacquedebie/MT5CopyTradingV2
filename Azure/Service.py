@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = True
+debug = False
 
 if(debug):
     ADDRESS = "127.0.0.1"
@@ -574,12 +574,14 @@ def insert_tradeServer(data):
         db_cursor.execute("""
             INSERT INTO tbl_trade (
                 tbl_trade_ticket, 
-                tbl_trade_account
-            ) VALUES (?, ?)
+                tbl_trade_account,
+                tbl_trade_time
+            ) VALUES (?, ?, ?)
         """, 
         (
          data_dict.get('Ticket'), 
-         data_dict.get('AccountId')
+         data_dict.get('AccountId'),
+         data_dict.get('Open Time')
         ))
         
         db_conn.commit()
@@ -644,7 +646,6 @@ def update_tradeServerHistory(data):
                     tbl_trade_profit = ?, 
                     tbl_trade_symbol = ?, 
                     tbl_trade_billed = ?, 
-                    tbl_trade_time = ?, 
                     tbl_trade_type = ?, 
                     tbl_trade_swap = ?
 
@@ -654,8 +655,7 @@ def update_tradeServerHistory(data):
              trade.get('Volume'), 
              trade.get('Profit'), 
              trade.get('Symbol'), 
-             0,#billed, 
-             trade.get('PositionTime'), 
+             0, #billed, 
              trade.get('Type'), 
              trade.get('Swap'), 
              ticket))
