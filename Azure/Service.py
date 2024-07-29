@@ -575,13 +575,23 @@ def insert_tradeServer(data):
             INSERT INTO tbl_trade (
                 tbl_trade_ticket, 
                 tbl_trade_account,
-                tbl_trade_timeOpen
-            ) VALUES (?, ?, ?)
+                tbl_trade_timeOpen,
+                tbl_trade_tp,
+                tbl_trade_sl,
+                tbl_trade_billed,
+                tbl_trade_price,
+                tbl_trade_type
+            ) VALUES (?, ?, ? ,? ,? ,? ,? , ?)
         """, 
         (
          data_dict.get('Ticket'), 
          data_dict.get('AccountId'),
-         data_dict.get('Open Time')
+         data_dict.get('Open Time'),
+         data_dict.get('TP'),
+         data_dict.get('SL'),
+         0, # Billed
+         data_dict.get('Open Price'),
+         data_dict.get('Type')
         ))
         
         db_conn.commit()
@@ -604,15 +614,13 @@ def update_tradeServerClose(data):
         db_cursor.execute("""
             UPDATE tbl_trade
             SET tbl_trade_symbol = ?, 
-                tbl_trade_type = ?, 
                 tbl_trade_drawdown = ?, 
                 tbl_trade_maxProfit = ?,
                 tbl_trade_timeClose = ?
-            WHERE tbl_trade_ticket = ? AND tbl_trade_profit IS NULL
+            WHERE tbl_trade_ticket = ? AND tbl_trade_timeClose IS NULL 
         """, 
         (
-         data.get('Symbol'), 
-         data.get('Type'), 
+         data.get('Symbol'),  
          data.get('maxDrawdown'), 
          data.get('maxProfit'),
          data.get('Close Time'),
@@ -648,23 +656,22 @@ def update_tradeServerHistory(data):
                     tbl_trade_profit = ?, 
                     tbl_trade_symbol = ?, 
                     tbl_trade_billed = ?, 
-                    tbl_trade_type = ?, 
-                    tbl_trade_swap = ?
+                    tbl_trade_swap = ?,
+                    tbl_trade_tsl = ?
 
-                WHERE tbl_trade_ticket = ? AND tbl_trade_drawdown IS NOT NULL
+                WHERE tbl_trade_ticket = ? AND tbl_trade_tsl IS NULL AND tbl_trade_type != ?
             """, 
             (trade.get('Magic'), 
              trade.get('Volume'), 
              trade.get('Profit'), 
              trade.get('Symbol'), 
              0, #billed, 
-             trade.get('Type'), 
              trade.get('Swap'), 
-             ticket))
+             trade.get('SL'), 
+             ticket,
+             trade.get('Type')))
             
             db_conn.commit()
-
-            print(f"Trade with Ticket {ticket} updated successfully.")
 
         except sqlite3.Error as e:
             print(f"An error occurred while updating trade with Ticket {ticket}: {e}")
