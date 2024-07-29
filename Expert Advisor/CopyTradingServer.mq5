@@ -5,7 +5,7 @@
 
 CTrade trade;
 
-//tring Address = "127.0.0.1";
+//string Address = "127.0.0.1";
 string Address = "172.174.154.125";
 
 int Port = 9094;
