@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = False
+debug = True
 
 if(debug):
     ADDRESS = "127.0.0.1"
@@ -66,7 +66,7 @@ async def RequestHandler(json_string, writer):
             else:
                 print("No history returned")
         elif action == "Authenticate":
-            print("Authenticate")
+            await authenticate(writer, json_data)
             await ClientConnected(writer, json_data)  # Ensure to await async function
         elif action == "Server_CloseTrade":
             await Server_CloseTrade(json_data)
@@ -77,13 +77,14 @@ async def RequestHandler(json_string, writer):
         elif action == "Server_UpdateTrade":
             await Server_UpdateTrade(json_data)
         elif action == "Ping":
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Check if Active account
+
             if IsAccountActive(client_id):
-                writer.write(json.dumps({"Code": "Notifications", "message": accountActiveMessage}).encode('utf-8'))
+                text = CustomNotification(client_id)
+                writer.write(text)
                 await writer.drain()
             else:
-                writer.write(json.dumps({"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(client_id)}).encode('utf-8'))
+                text = CustomNotification(client_id)
+                writer.write(text)
                 await writer.drain()
 
     except json.JSONDecodeError as e:
@@ -111,9 +112,48 @@ async def RequestHandler(json_string, writer):
         print(f"An unexpected error occurred: {e}")
         print(f"Error details: {json_data}")
 
-
 def TradeStatus(json_data):
-    print(json_data)
+    print("TradeStatus") # NOt used currently
+
+def CustomNotification(account_id):
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+
+    db_cursor.execute("SELECT tbl_user_Active, tbl_user_Name, tbl_user_email, tbl_user_AccountNumber FROM tbl_user WHERE tbl_user_accountNumber = ?", (account_id,))
+
+    rows = db_cursor.fetchall()
+    number_of_rows = len(rows)
+
+    if number_of_rows > 0:
+        name = rows[0][1]
+        email = rows[0][2]
+        account_id = account_id
+
+        if rows[0][0] == 1:
+            status = "Active"
+        else:
+            status = "Not Active"
+
+        account_active_message = f"Name: {name}\nEmail: {email}\nAccount ID: {account_id}\nStatus: {status}"
+        popup = ""
+        removeEA = "0"
+
+        messageRequest = {
+            "Code": "Notifications",
+            "message": account_active_message,
+            "popup": popup,
+            "removeEA": removeEA
+        }
+        
+        # Convert the dictionary to a JSON string and then to bytes
+        messageRequest_json = json.dumps(messageRequest).encode('utf-8')
+        
+        return messageRequest_json
+
+    else:
+        return json.dumps({"Code": "Notifications", "message": "No account found", "popup": "", "removeEA": "0"}).encode('utf-8')
 
 async def AccountHistory(writer, json_data):
 
@@ -173,18 +213,16 @@ async def ClientConnected(writer, json_data):
                 is_active = bool(rows[0][0])
 
                 if rows[0][0] == 1:
+                    
+                    text = CustomNotification(account_id)
 
-                    print("Account already exist",rows[0])
-                    messageRequest = {"Code": "Notifications", "message": accountActiveMessage}
-                    trade_details_json = json.dumps(messageRequest)
-                    await DirectBroadcast(writer,trade_details_json,account_id)
-
+                    await DirectBroadcast(writer,text,account_id)
                     account_status_list.append((account_id, is_active))
                 else:
                     #select sum tbl_Transactions_Profit from tbl_Transactions where tbl_Transactions_Paid = false and add this to a string
-                    messageRequest = {"Code": "Notifications", "message": accountNotActiveMessage + GetOustandingAccountProfit(account_id)}
-                    trade_details_json = json.dumps(messageRequest)
-                    await DirectBroadcast(writer,trade_details_json,account_id)
+                    text = CustomNotification(account_id)
+                    await DirectBroadcast(writer,text,account_id)
+
                     account_status_list.append((account_id, is_active))
             else:
                 db_cursor.execute("INSERT INTO tbl_user (tbl_user_name, tbl_user_email, tbl_user_accountNumber, tbl_user_idnumber, tbl_user_Active) VALUES (?,?,?,?,?)", (user_Name,user_Email,account_id,user_Id,1))
@@ -235,6 +273,7 @@ async def handle_client(reader, writer):
     clients.add(writer)
 
     authenticateRequest = {"Code": "Authenticate"}
+
     writer.write(json.dumps(authenticateRequest).encode('utf-8'))
     await writer.drain()
 
@@ -285,14 +324,26 @@ async def broadcast(message):
         if IsAccountActive(client_accounts.get(client, "")):
             client.write(message.encode('utf-8'))
             await client.drain()
-
-    
+ 
 async def DirectBroadcast(writer, message, clientID):
-    encoded_message = message.encode('utf-8')
-    writer.write(encoded_message)
+    if isinstance(message, str):
+        message = message.encode('utf-8')
+    writer.write(message)
     await writer.drain()
+    AddCommunication(clientID, message.decode('utf-8'))  # Assuming message is bytes, decode it for logging
 
-    AddCommunication(clientID, message)
+async def authenticate(writer, json_data):
+    print("Send variable details to client")
+
+    Initialize_json = {
+        "Code": "Initialize Variables",
+        "Max Trades": 10,
+        "Ping Interval": 10,
+        "Max TP points": 100, #for risk use per client
+        "Max SL points": 100  #for risk use per client
+    }
+
+    writer.write(json.dumps(Initialize_json).encode('utf-8'))
 
 #SERVER CALLS
 
@@ -345,7 +396,6 @@ class AccountList:
     def __init__(self, accountList_Number, accountList_Name):
         self.accountList_Number = accountList_Number
         self.accountList_Name = accountList_Name
-
 
 def check_for_modify_trades(loop):
     print("Checking for Modify trades")
@@ -490,74 +540,6 @@ def GetTradeDetails(loop):
 
 #----------------  DB & Files  ----------------
 
-def print_to_console_and_file(message):
-    with open("C:/Temp/output.txt", "a") as outputfile:
-        print(message, file=outputfile)
-    print(message)
-
-def AddCommunication(accountNumber, message):
-    
-    date = datetime.now()
-
-    DB_CONNECTION = dbPath
-    db_conn = sqlite3.connect(DB_CONNECTION)
-    db_cursor = db_conn.cursor()
-    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber,tbl_Communication_Time, tbl_Communication_Message) VALUES (?, ?, ?)", (accountNumber, date,message))
-    db_conn.commit()
-    db_conn.close()
-
-def InsertTradeHistory(trade_data):
-
-    DB_CONNECTION = dbPath
-    db_conn = sqlite3.connect(DB_CONNECTION)
-    db_cursor = db_conn.cursor()
-
-    trade_ticket = trade_data['Ticket']
-    account_id = trade_data['AccountID']
-
-    position_time = datetime.strptime(trade_data["PositionTime"], "%Y.%m.%d %H:%M")
-    trade_data["PositionTime"] = position_time.strftime("%Y-%m-%d %H:%M:%S")
-
-    db_cursor.execute(
-        "SELECT tbl_trade_ticket FROM tbl_trade WHERE tbl_trade_ticket = ? AND tbl_trade_account = ?", 
-        (trade_ticket, account_id)
-    )
-
-    deal = db_cursor.fetchone()
-
-    if deal is None:
-
-        trade_data_json = {
-            "Ticket": trade_data['Ticket'],
-            "Volume": trade_data['Volume'],
-            "Profit": trade_data['Profit'],
-            "Magic": trade_data['Magic'],
-            "Symbol": trade_data['Symbol'],
-            "PositionTime": trade_data['PositionTime'],
-            "Type": trade_data['Type'],
-            "Swap": trade_data['Swap']
-        }
-
-        db_cursor.execute(
-            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_time, tbl_trade_account, tbl_trade_magic,tbl_trade_billed,tbl_trade_type,tbl_trade_swap) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?)",
-            (
-                trade_data_json["Ticket"], 
-                trade_data_json["Volume"], 
-                trade_data_json["Profit"], 
-                trade_data_json["Symbol"], 
-                trade_data_json["PositionTime"],
-                account_id,
-                trade_data['Magic'],
-                0,
-                trade_data_json["Type"],
-                trade_data_json["Swap"]
-            )
-        )
-
-        db_conn.commit()
-
-    db_conn.close()
-
 #Server queries
 
 def insert_tradeServer(data):
@@ -681,6 +663,74 @@ def update_tradeServerHistory(data):
 
 #End Server queries
 
+def print_to_console_and_file(message):
+    with open("C:/Temp/output.txt", "a") as outputfile:
+        print(message, file=outputfile)
+    print(message)
+
+def AddCommunication(accountNumber, message):
+    
+    date = datetime.now()
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+    db_cursor.execute("INSERT INTO tbl_Communication (tbl_Communication_AccountNumber,tbl_Communication_Time, tbl_Communication_Message) VALUES (?, ?, ?)", (accountNumber, date,message))
+    db_conn.commit()
+    db_conn.close()
+
+def InsertTradeHistory(trade_data):
+
+    DB_CONNECTION = dbPath
+    db_conn = sqlite3.connect(DB_CONNECTION)
+    db_cursor = db_conn.cursor()
+
+    trade_ticket = trade_data['Ticket']
+    account_id = trade_data['AccountID']
+
+    position_time = datetime.strptime(trade_data["PositionTime"], "%Y.%m.%d %H:%M")
+    trade_data["PositionTime"] = position_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    db_cursor.execute(
+        "SELECT tbl_trade_ticket FROM tbl_trade WHERE tbl_trade_ticket = ? AND tbl_trade_account = ?", 
+        (trade_ticket, account_id)
+    )
+
+    deal = db_cursor.fetchone()
+
+    if deal is None:
+
+        trade_data_json = {
+            "Ticket": trade_data['Ticket'],
+            "Volume": trade_data['Volume'],
+            "Profit": trade_data['Profit'],
+            "Magic": trade_data['Magic'],
+            "Symbol": trade_data['Symbol'],
+            "PositionTime": trade_data['PositionTime'],
+            "Type": trade_data['Type'],
+            "Swap": trade_data['Swap']
+        }
+
+        db_cursor.execute(
+            "INSERT INTO tbl_trade (tbl_trade_ticket, tbl_trade_volume, tbl_trade_profit, tbl_trade_symbol, tbl_trade_timeOpen, tbl_trade_account, tbl_trade_magic,tbl_trade_billed,tbl_trade_type,tbl_trade_swap) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?)",
+            (
+                trade_data_json["Ticket"], 
+                trade_data_json["Volume"], 
+                trade_data_json["Profit"], 
+                trade_data_json["Symbol"], 
+                trade_data_json["PositionTime"],
+                account_id,
+                trade_data['Magic'],
+                0,
+                trade_data_json["Type"],
+                trade_data_json["Swap"]
+            )
+        )
+
+        db_conn.commit()
+
+    db_conn.close()
+
 def IsAccountActive(accountNumber):
     for account, active in account_status_list:
         if account == accountNumber:
@@ -803,8 +853,6 @@ async def daily_Billing():
                 print(f"An error occurred while sending billing request to account {account}: {e}")
             finally:
                 pass
- 
-# Example usage
 
 def setup_scheduler():
 
@@ -827,8 +875,6 @@ async def main_async():
 
     async with server:
         await server.serve_forever()
-
-    
 
 def main():
 

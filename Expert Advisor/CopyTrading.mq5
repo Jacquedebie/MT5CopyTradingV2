@@ -82,15 +82,15 @@ void Authenticate(string json)
    Print("Authenticate : " + json);
 
     CJAVal authenticateObj;
-             authenticateObj["Code"] = "Authenticate";
-             authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
-             authenticateObj["Email"] = Email_Address;
-             authenticateObj["CellNumber"] = Cell_Number;
-             authenticateObj["Name"] = Name_Surname;
-             authenticateObj["IdentificationNumber"] = Identification_Number;
+    authenticateObj["Code"] = "Authenticate";
+    authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+    authenticateObj["Email"] = Email_Address;
+    authenticateObj["CellNumber"] = Cell_Number;
+    authenticateObj["Name"] = Name_Surname;
+    authenticateObj["IdentificationNumber"] = Identification_Number;
              
-             authenticateObj["AutoLotSize"] = Auto_Lot_Size;
-             authenticateObj["LotSize"] = DoubleToString(Lot_Size);
+    authenticateObj["AutoLotSize"] = Auto_Lot_Size;
+    authenticateObj["LotSize"] = DoubleToString(Lot_Size);
 
              
     string ConnectedMessage = authenticateObj.Serialize();                      
@@ -98,6 +98,10 @@ void Authenticate(string json)
     HTTPSend(socket, ConnectedMessage);
     
 }
+
+// Define the configurable SL and TP difference multipliers
+double SL_DifferenceMultiplier = 100; //points 1 point = 1$ on 0.01
+double TP_DifferenceMultiplier = 100;
 
 void OpenTrade(string json)
 {
@@ -114,35 +118,70 @@ void OpenTrade(string json)
         double sl = jsonObj["SL"].ToDbl(); 
         double tp = jsonObj["TP"].ToDbl(); 
         string comment = jsonObj["Comment"].ToStr();
-        string magicNumber = jsonObj["Ticket"].ToStr();
+        ulong magicNumber = StringToInteger(jsonObj["Ticket"].ToStr()); // Use ulong for magic number
       
-        bool result = false;
+        // Check the SL and price difference conditions
+        double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
+        
+        if(symbol == "Gold")
+        {
+            symbol = "XAUUSD";
+        }
+        
+        bool conditionsMet = false;
+        
+        // Separate conditions for buy and sell
         switch(orderType)
         {
             case ORDER_TYPE_BUY:
-                trade.SetExpertMagicNumber(magicNumber);   
-                result = trade.Buy(volume, symbol, price, sl, tp, comment);
+                if ((sl == 0 || (sl < price && MathAbs(price - sl) >= SL_DifferenceMultiplier * point)) &&
+                    (tp == 0 || (tp > price && MathAbs(tp - price) >= TP_DifferenceMultiplier * point)))
+                {
+                    conditionsMet = true;
+                }
                 break;
             case ORDER_TYPE_SELL:
-                trade.SetExpertMagicNumber(magicNumber);   
-                result = trade.Sell(volume, symbol, price, sl, tp, comment);
+                if ((sl == 0 || (sl > price && MathAbs(sl - price) >= SL_DifferenceMultiplier * point)) &&
+                    (tp == 0 || (tp < price && MathAbs(price - tp) >= TP_DifferenceMultiplier * point)))
+                {
+                    conditionsMet = true;
+                }
                 break;
             default:
                 Print("Unsupported order type: ", orderType);
                 return;
         }
+        
+        if (conditionsMet)
+        {
+            bool result = false;
+            trade.SetExpertMagicNumber(magicNumber);   
+            switch(orderType)
+            {
+                case ORDER_TYPE_BUY:
+                    result = trade.Buy(volume, symbol, price, sl, tp, comment);
+                    break;
+                case ORDER_TYPE_SELL:
+                    result = trade.Sell(volume, symbol, price, sl, tp, comment);
+                    break;
+            }
 
-        if(!result)
-         {
-             Print("Trade execution failed: ", trade.ResultRetcode(), " - ", trade.ResultRetcodeDescription());
-         }
-
+            if(!result)
+            {
+                Print("Trade execution failed: ", trade.ResultRetcode(), " - ", trade.ResultRetcodeDescription());
+            }
+        }
+        else
+        {
+            Print("Trade conditions not met: SL and TP differences are not within the specified range for the order type.");
+        }
     }
     else
     {
         Print("Failed to deserialize JSON: ", json);
     }
 }
+
 
 void CloseTrade(string json)
 {
@@ -258,9 +297,18 @@ void Notification(string json)
 
     if (jsonObj.Deserialize(json)) 
     {
-        // Extract some information from the JSON object for display
         string message = jsonObj["message"].ToStr();
         Comment(message);
+        
+        if(jsonObj["popup"].ToStr() != "")
+        {
+            MessageBox(jsonObj["popup"].ToStr(), "Popup", MB_OK);
+        }
+        
+        if(jsonObj["removeEA"].ToStr() == "1")
+        {
+            ExpertRemove();
+        }
     } 
     else 
     {
