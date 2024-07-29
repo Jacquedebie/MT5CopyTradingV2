@@ -5,8 +5,9 @@
 
 CTrade trade;
 
-string Address = "172.174.154.125";
 //string Address = "127.0.0.1";
+string Address = "172.174.154.125";
+
 int Port = 9094;
 bool ExtTLS = false;
 int socket = INVALID_HANDLE;
@@ -118,8 +119,8 @@ void OnTimer()
    int targetHour1 = 9; 
    int targetMinute1 = 0; 
 
-   int intervalUpdateTrades = 60;  
-   int intervalPing = 10; 
+   int intervalUpdateTrades = 1;  
+   int intervalPing = 1; 
 
    datetime currentTime = TimeCurrent();
    MqlDateTime currentTimeStruct;
@@ -157,7 +158,24 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
    switch(trans.type)
    {
       case TRADE_TRANSACTION_DEAL_UPDATE:
-         Print("Case Updated");
+      
+         if (PositionSelectByTicket(trans.position)) 
+            {
+            
+                CJAVal authenticateObj;
+                authenticateObj["Code"] = "Server_UpdateTrade";
+                authenticateObj["AccountId"] = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+                authenticateObj["Ticket"] = IntegerToString(PositionGetInteger(POSITION_IDENTIFIER));
+                authenticateObj["TP"] = DoubleToString(PositionGetDouble(POSITION_TP));
+                authenticateObj["SL"] = DoubleToString(PositionGetDouble(POSITION_SL));
+                 
+                string OpenTrade = authenticateObj.Serialize();                      
+                HTTPSend(socket, OpenTrade);
+                
+            } 
+            else {
+                Print("Position with ticket ", trans.position, " not found.");
+            }
          
       case TRADE_TRANSACTION_DEAL_ADD:
       
@@ -175,7 +193,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
            //authenticateObj["profit"] = GetProfitByPositionID(trans.position, trades);
            authenticateObj["maxDrawdown"] = GetDrawdownProfitByPositionID(trans.position, trades);
            authenticateObj["maxProfit"] = GetMaxProfitByPositionID(trans.position, trades);
-                                   
+           
+           MqlDateTime dt;
+           TimeToStruct(TimeCurrent(), dt);
+           authenticateObj["Close Time"] = StringFormat("%04d-%02d-%02d %02d:%02d:%02d", dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec); 
+                                    
            string CloseTrade = authenticateObj.Serialize();                      
            HTTPSend(socket, CloseTrade);
        
@@ -202,6 +224,10 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
                 authenticateObj["Magic"] = IntegerToString(PositionGetInteger(POSITION_MAGIC));
                 authenticateObj["TP"] = DoubleToString(PositionGetDouble(POSITION_TP));
                 authenticateObj["SL"] = DoubleToString(PositionGetDouble(POSITION_SL));
+                
+                MqlDateTime dt;
+                TimeToStruct(TimeCurrent(), dt);
+                authenticateObj["Open Time"] = StringFormat("%04d-%02d-%02d %02d:%02d:%02d", dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec); 
                  
                 string OpenTrade = authenticateObj.Serialize();                      
                 HTTPSend(socket, OpenTrade);
