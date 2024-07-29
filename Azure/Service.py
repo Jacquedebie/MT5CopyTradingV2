@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = True
+debug = False
 
 if(debug):
     ADDRESS = "127.0.0.1"
