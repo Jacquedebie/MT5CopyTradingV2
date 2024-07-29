@@ -5,7 +5,7 @@
 
 CTrade trade;
 
-//string Address = "127.0.0.1";
+//tring Address = "127.0.0.1";
 string Address = "172.174.154.125";
 
 int Port = 9094;
@@ -120,7 +120,7 @@ void OnTimer()
    int targetMinute1 = 0; 
 
    int intervalUpdateTrades = 1;  
-   int intervalPing = 1; 
+   int intervalPing = 10; 
 
    datetime currentTime = TimeCurrent();
    MqlDateTime currentTimeStruct;
