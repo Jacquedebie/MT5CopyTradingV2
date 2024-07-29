@@ -122,12 +122,7 @@ void OpenTrade(string json)
       
         // Check the SL and price difference conditions
         double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
-        
-        if(symbol == "Gold")
-        {
-            symbol = "XAUUSD";
-        }
-        
+               
         bool conditionsMet = false;
         
         // Separate conditions for buy and sell
