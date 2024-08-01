@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = False
+debug = True
 
 if(debug):
     ADDRESS = "127.0.0.1"
@@ -318,19 +318,29 @@ async def handle_client(reader, writer):
             pass
 
 async def broadcast(message):
-    
-    for client in clients:
-        #to what clinet id and message
-        if IsAccountActive(client_accounts.get(client, "")):
-            client.write(message.encode('utf-8'))
-            await client.drain()
- 
+    for client in list(clients):  # Use a copy of the list to avoid modification during iteration
+        try:
+            if IsAccountActive(client_accounts.get(client, "")):
+                client.write(message.encode('utf-8'))
+                await client.drain()
+        except (ConnectionResetError, asyncio.CancelledError, OSError) as e:
+            print(f"Failed to send broadcast message to client {client_accounts.get(client, '')}: {e}")
+            clients.remove(client)
+            if client in client_accounts:
+                del client_accounts[client]
+
 async def DirectBroadcast(writer, message, clientID):
     if isinstance(message, str):
         message = message.encode('utf-8')
-    writer.write(message)
-    await writer.drain()
-    AddCommunication(clientID, message.decode('utf-8'))  # Assuming message is bytes, decode it for logging
+    try:
+        writer.write(message)
+        await writer.drain()
+        AddCommunication(clientID, message.decode('utf-8'))  # Assuming message is bytes, decode it for logging
+    except (ConnectionResetError, asyncio.CancelledError, OSError) as e:
+        print(f"Failed to send direct message to client {clientID}: {e}")
+        clients.remove(writer)
+        if writer in client_accounts:
+            del client_accounts[writer]
 
 async def authenticate(writer, json_data):
     print("Send variable details to client")
@@ -349,6 +359,8 @@ async def authenticate(writer, json_data):
 
 async def Server_OpenTrade(json_data):
 
+    insert_tradeServer(json_data)
+
     OpenTrade_json = {
         "Code": "OpenTrade",
         "Symbol": json_data['Symbol'],
@@ -363,10 +375,11 @@ async def Server_OpenTrade(json_data):
     ClientOpenTrade_json = json.dumps(OpenTrade_json)
     await broadcast(ClientOpenTrade_json)
 
-    insert_tradeServer(json_data)
     AddCommunication(str(list(client_accounts.values())), ClientOpenTrade_json)
 
 async def Server_CloseTrade(json_data):
+
+    update_tradeServerClose(json_data)
 
     UpdateTrade_json = {
         "Code": "CloseTrade",
@@ -376,7 +389,6 @@ async def Server_CloseTrade(json_data):
     ClientUpdateTrade_json = json.dumps(UpdateTrade_json)
     await broadcast(ClientUpdateTrade_json)
     
-    update_tradeServerClose(json_data)
     AddCommunication(str(list(client_accounts.values())), ClientUpdateTrade_json)
 
 async def Server_TradeHistory(json_data):
