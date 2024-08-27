@@ -339,8 +339,8 @@ async def authenticate(writer, json_data):
         "Code": "Initialize Variables",
         "Max Trades": 10,
         "Ping Interval": 10,
-        "Max TP points": 100, #for risk use per client
-        "Max SL points": 100  #for risk use per client
+        "Max TP points": 20, #for risk use per client
+        "Max SL points": 20  #for risk use per client
     }
 
     writer.write(json.dumps(Initialize_json).encode('utf-8'))
@@ -357,7 +357,8 @@ async def Server_OpenTrade(json_data):
         "SL": json_data['SL'],  
         "TP": json_data['TP'],  
         "Comment": json_data['Comment'],
-        "Ticket": json_data['Ticket']
+        "Ticket": json_data['Ticket'],
+        "Magic": json_data['Magic']
     }
     
     ClientOpenTrade_json = json.dumps(OpenTrade_json)
@@ -904,7 +905,10 @@ if __name__ == "__main__":
     DIRECTORY = os.path.dirname(os.path.dirname(PATH))
     dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
-    script_path = os.path.dirname(os.path.abspath(__file__)) + '\ReadTelegramGroup.py'
-    subprocess.Popen(['start', 'cmd', '/k', f'python {script_path}'], shell=True)
+        # Get the absolute path to the script
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ReadTelegramGroup.py')
+
+    # Start a new command prompt and run the script using Python 3.10
+    subprocess.Popen(['start', 'cmd', '/k', f'py -3.10 {script_path}'], shell=True)
 
     main()
