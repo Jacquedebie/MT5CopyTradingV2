@@ -48,7 +48,6 @@ from datetime import datetime
 
 async def RequestHandler(json_string, writer):
     
-    print(f"Received data: {json_string}")
 
     client_id = client_accounts.get(writer, "")
 
@@ -212,6 +211,8 @@ async def ClientConnected(writer, json_data):
                 
                 is_active = bool(rows[0][0])
 
+                print(is_active)
+
                 if rows[0][0] == 1:
                     
                     text = CustomNotification(account_id)
@@ -272,7 +273,11 @@ async def handle_client(reader, writer):
 
     clients.add(writer)
 
+    print(f"Client {addr} connected")
+
     authenticateRequest = {"Code": "Authenticate"}
+
+    await DirectBroadcast(writer, json.dumps(authenticateRequest).encode('utf-8'), "clientID")
 
     writer.write(json.dumps(authenticateRequest).encode('utf-8'))
     await writer.drain()
@@ -317,30 +322,66 @@ async def handle_client(reader, writer):
         except OSError:
             pass
 
+async def DirectBroadcast(writer, message, clientID):
+
+    print(f"Sending message to client {clientID}")
+    print(f"Message: {message}")
+
+    if isinstance(message, dict):
+        message = json.dumps(message)
+
+    if isinstance(message, str):
+        message = message.encode('utf-8')
+    
+    http_response = (
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        f"Content-Length: {len(message)}\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n"
+    ).encode('utf-8') + message
+
+    try:
+        writer.write(http_response)
+        await writer.drain()
+        AddCommunication(clientID, message.decode('utf-8'))  # Log the message
+    except (ConnectionResetError, asyncio.CancelledError, OSError) as e:
+        print(f"Failed to send HTTP response to client {clientID}: {e}")
+        clients.remove(writer)
+        if writer in client_accounts:
+            del client_accounts[writer]
+
 async def broadcast(message):
+    # Convert the message to JSON if it's a dictionary
+    if isinstance(message, dict):
+        message = json.dumps(message)
+    
+    # Ensure the message is a byte string
+    if isinstance(message, str):
+        message = message.encode('utf-8')
+
+    # Construct the HTTP response
+    http_response = (
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        f"Content-Length: {len(message)}\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n"
+    ).encode('utf-8') + message
+
     for client in list(clients):  # Use a copy of the list to avoid modification during iteration
         try:
+            # Check if the client's account is active
             if IsAccountActive(client_accounts.get(client, "")):
-                client.write(message.encode('utf-8'))
+                client.write(http_response)
                 await client.drain()
+                # Log the message for each client
+                AddCommunication(client_accounts.get(client, ""), message.decode('utf-8'))
         except (ConnectionResetError, asyncio.CancelledError, OSError) as e:
             print(f"Failed to send broadcast message to client {client_accounts.get(client, '')}: {e}")
             clients.remove(client)
             if client in client_accounts:
                 del client_accounts[client]
-
-async def DirectBroadcast(writer, message, clientID):
-    if isinstance(message, str):
-        message = message.encode('utf-8')
-    try:
-        writer.write(message)
-        await writer.drain()
-        AddCommunication(clientID, message.decode('utf-8'))  # Assuming message is bytes, decode it for logging
-    except (ConnectionResetError, asyncio.CancelledError, OSError) as e:
-        print(f"Failed to send direct message to client {clientID}: {e}")
-        clients.remove(writer)
-        if writer in client_accounts:
-            del client_accounts[writer]
 
 async def authenticate(writer, json_data):
     print("Send variable details to client")
@@ -358,6 +399,8 @@ async def authenticate(writer, json_data):
 #SERVER CALLS
 
 async def Server_OpenTrade(json_data):
+
+    print("Server_OpenTrade")
 
     insert_tradeServer(json_data)
 
@@ -392,9 +435,9 @@ async def Server_CloseTrade(json_data):
     AddCommunication(str(list(client_accounts.values())), ClientUpdateTrade_json)
 
 async def Server_TradeHistory(json_data):
-    print("Server_TradeHistory")
+    #print("Server_TradeHistory")
     update_tradeServerHistory(json_data)
-    print(json_data)
+    #print(json_data)
 
 async def Server_UpdateTrade(json_data):
     print("Server_UpdateTrade")
@@ -622,7 +665,6 @@ def update_tradeServerClose(data):
         ))
         
         db_conn.commit()
-        print("Trade updated successfully.")
 
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
