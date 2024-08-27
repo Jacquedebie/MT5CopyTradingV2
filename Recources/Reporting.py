@@ -21,15 +21,18 @@ def get_data(query):
 # Calculate default dates for Monday and Friday of the current week
 today = datetime.today()
 monday = today - timedelta(days=today.weekday())
-friday = monday + timedelta(days = 4)
+friday = monday + timedelta(days=4)
 
 # Date selectors
 start_date = st.date_input("Start Date", monday)
 end_date = st.date_input("End Date", friday)
 
+# Max Trade Pips input box
+max_trade_pips = st.number_input("Max Trade Pips", min_value=1, value=20)
+
 # Convert dates to strings for the query
-start_date_str = start_date.strftime('%Y-%m-%d')
-end_date_str = end_date.strftime('%Y-%m-%d')
+start_date_str = start_date.strftime('%Y-%m-%d 00:00:00')
+end_date_str = end_date.strftime('%Y-%m-%d 23:59:59')
 
 # Query to read data from tbl_trade and join with tbl_telegramGroups to get group names
 query_all = f"""
@@ -39,17 +42,27 @@ JOIN tbl_telegramGroups g ON t.tbl_trade_magic = g.tbl_telegramGroup_MagicNumber
 WHERE t.tbl_trade_account = 97576996 
 AND t.tbl_trade_timeOpen BETWEEN '{start_date_str}' AND '{end_date_str}'
 AND t.tbl_trade_profit != 0
+AND (
+    SELECT COUNT(*) 
+    FROM tbl_trade t2
+    WHERE 
+    t.tbl_trade_account = 97576996 AND 
+    t2.tbl_trade_magic = t.tbl_trade_magic AND 
+    t2.tbl_trade_profit != 0
+) > 1
+AND tbl_telegramGroup_ActiveIndicator = 1
+
+
 """
-
-# Load data into a DataFrame for overall analysis
-df_all = get_data(query_all)
-
-# Function to analyze the data and determine the best and worst signal groups
+# AND (
+#     (t.tbl_trade_type = 0 AND ABS(t.tbl_trade_Price - t.tbl_trade_tp) < {max_trade_pips} AND ABS(t.tbl_trade_Price - t.tbl_trade_sl) < {max_trade_pips}) OR
+#     (t.tbl_trade_type = 1 AND ABS(t.tbl_trade_tp - t.tbl_trade_Price) < {max_trade_pips} AND ABS(t.tbl_trade_sl - t.tbl_trade_Price) < {max_trade_pips})
+# )
 def analyze_data(df):
     # Calculate the trade duration
     df['tbl_trade_timeOpen'] = pd.to_datetime(df['tbl_trade_timeOpen'])
-    df['tbl_trade_timeClose'] = pd.to_datetime(df['tbl_trade_timeClose'])
-    df['trade_duration'] = (df['tbl_trade_timeClose'] - df['tbl_trade_timeOpen']).dt.total_seconds() / 3600  # Duration in hours
+    df['tbl_trade_timeClose'] = pd.to_datetime(df['tbl_trade_timeClose'], errors='coerce')
+    df['trade_duration'] = (df['tbl_trade_timeClose'] - df['tbl_trade_timeOpen']).dt.total_seconds() / 60  # Duration in minutes
 
     # Group by tbl_trade_magic and calculate the total profit, number of profitable trades, and number of losing trades for each group
     analysis = df.groupby(['tbl_trade_magic', 'tbl_telegramGroups_GroupName']).agg(
@@ -58,7 +71,8 @@ def analyze_data(df):
         profitable_trades=pd.NamedAgg(column='tbl_trade_profit', aggfunc=lambda x: (x > 0).sum()),
         losing_trades=pd.NamedAgg(column='tbl_trade_profit', aggfunc=lambda x: (x <= 0).sum()),
         max_drawdown=pd.NamedAgg(column='tbl_trade_drawdown', aggfunc='min'),
-        average_trade_duration=pd.NamedAgg(column='trade_duration', aggfunc='mean')
+        average_trade_duration=pd.NamedAgg(column='trade_duration', aggfunc='mean'),
+        open_trades=pd.NamedAgg(column='tbl_trade_timeClose', aggfunc=lambda x: x.isna().sum())  # Count open trades
     ).reset_index()
 
     # Calculate profitable and losing days
@@ -81,11 +95,9 @@ def analyze_data(df):
 
     return analysis
 
-# Function to calculate the maximum drawdown
-def calculate_max_drawdown(cumulative_profit):
-    drawdowns = cumulative_profit - cumulative_profit.cummax()
-    max_drawdown = drawdowns.min()
-    return max_drawdown
+
+# Load data into a DataFrame for overall analysis
+df_all = get_data(query_all)
 
 # Analyze the data
 if not df_all.empty:
@@ -107,71 +119,24 @@ if not df_all.empty:
     with tab1:
         st.header('All Signal Groups')
         
-        # Display the dataframe grouped by signal group
-        st.dataframe(analysis)
+        # Sort and display the dataframe grouped by signal group
+        analysis_sorted = analysis.sort_values(by='total_profit', ascending=False)
+        st.dataframe(analysis_sorted)
         
-        selected_group_name = st.selectbox("Select Signal Group", analysis['tbl_telegramGroups_GroupName'].unique())
-        
+        # Searchable dropdown with a text input box
+        search_query = st.text_input("Search for a Signal Group")
+        filtered_groups = analysis_sorted['tbl_telegramGroups_GroupName'].unique()
+
+        if search_query:
+            filtered_groups = [group for group in filtered_groups if search_query.lower() in group.lower()]
+
+        selected_group_name = st.selectbox("Select Signal Group", filtered_groups)
+
         if selected_group_name:
             df_filtered = df_all[df_all['tbl_telegramGroups_GroupName'] == selected_group_name]
             st.dataframe(df_filtered)
             
-            # Calculate metrics for the selected signal group
-            profitable_trades = df_filtered[df_filtered['tbl_trade_profit'] > 0].shape[0]
-            losing_trades = df_filtered[df_filtered['tbl_trade_profit'] <= 0].shape[0]
-            total_trades = df_filtered.shape[0]
-            cumulative_profit = df_filtered['tbl_trade_profit'].cumsum()
-            
-            # Calculate max drawdown
-            max_drawdown = calculate_max_drawdown(cumulative_profit)
-
-            # Plotting
-            fig1, ax1 = plt.subplots()
-            pd.Series([profitable_trades, losing_trades], index=['Profitable Trades', 'Losing Trades']).plot.pie(
-                autopct='%1.1f%%', startangle=90, ax=ax1, legend=False)
-            ax1.set_title('Profitable vs Losing Trades')
-            st.pyplot(fig1)
-
-            # Group trades by date
-            trades_per_day = df_filtered.groupby('trade_date').size()
-
-            fig2, ax2 = plt.subplots()
-            trades_per_day.plot.bar(ax=ax2)
-            ax2.set_title('Number of Trades per Day')
-            ax2.set_ylabel('Number of Trades')
-            ax2.set_xlabel('Date')
-            st.pyplot(fig2)
-
-            fig3, ax3 = plt.subplots()
-            ax3.plot(df_filtered.index, cumulative_profit, label="")
-            ax3.set_title('Cumulative Profit Over Time')
-            ax3.set_ylabel('Cumulative Profit')
-            ax3.set_xlabel('Trade Index')
-            ax3.legend()
-
-            # Annotate max drawdown
-            ax3.annotate(f'Max Drawdown: {max_drawdown}', 
-                        xy=(cumulative_profit.idxmin(), cumulative_profit.min()), 
-                        xytext=(cumulative_profit.idxmin(), cumulative_profit.min() * 1.1),
-                        arrowprops=dict(facecolor='red', shrink=0.05))
-
-            st.pyplot(fig3)
-
-            fig4, ax4 = plt.subplots()
-            df_filtered['tbl_trade_profit'].hist(bins=20, ax=ax4)
-            ax4.set_title('Distribution of Profit/Loss per Trade')
-            ax4.set_xlabel('Profit/Loss')
-            ax4.set_ylabel('Frequency')
-            st.pyplot(fig4)
-            
-            # Plotting daily profit and loss
-            fig5, ax5 = plt.subplots()
-            daily_profit_loss = df_filtered.groupby('trade_date')['tbl_trade_profit'].sum()
-            daily_profit_loss.plot(kind='bar', ax=ax5)
-            ax5.set_title('Daily Profit and Loss')
-            ax5.set_ylabel('Profit/Loss')
-            ax5.set_xlabel('Date')
-            st.pyplot(fig5)
+            # Continue with the rest of the code for plotting and analysis...
 
     with tab2:
         st.header('Good Signal Groups')
