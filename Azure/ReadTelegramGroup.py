@@ -122,7 +122,6 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     # Check if SL is valid
     if not is_valid_sl(price, sl, trade_type, symbol_info):
         print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
-        #Check if NEW SL is more than prevois cannot be snammer
         if trade_type == "Buy" or trade_type == "Buy Limit":
             sl = price - (500 * symbol_info.point)
         elif trade_type == "Sell" or trade_type == "Sell Limit":
@@ -193,6 +192,8 @@ async def process_all_group_messages(start_date, session):
     last_message_ids = {group_name: 0 for group_name in entities}
     while True:
         try:
+            # Remove the unused variable
+
             for group_name, entity in entities.items():
                 magic_number = groups_info[group_name]
                 result = await client(GetHistoryRequest(
@@ -214,15 +215,124 @@ async def process_all_group_messages(start_date, session):
                     if latest_message.id != last_message_ids[group_name] and message_date >= start_date:
                         if latest_message.message is not None:  # Check if the message is not None
                             message_text = latest_message.message.upper()  # Convert message to uppercase
+                            message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+
                             if "VIP GROUP OPEN FOR" in message_text:
                                 print_to_console_and_file(f"Skipping trade from {group_name} due to 'VIP GROUP OPEN FOR' in the message.")
                                 continue  # Skip processing this message
-
-                            message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+                            
                             print_to_console_and_file(f'--------------{group_name}-------------------')
                             print_to_console_and_file(f"{group_name}: {message_text} at {message_date_str}")
                             print_to_console_and_file('---------------------------------')
                             
+                            def parse_message(text):
+                                trade_type = None
+                                price = None
+                                
+                                # Determine trade type
+                                if "SELL LIMIT" in text:
+                                    trade_type = "Sell Limit"
+                                elif "BUY LIMIT" in text:
+                                    trade_type = "Buy Limit"
+                                elif "SELL" in text and "LIMIT" not in text:
+                                    trade_type = "Sell"
+                                elif "BUY" in text and "LIMIT" not in text:
+                                    trade_type = "Buy"
+
+                                # Determine symbol
+                                symbol = None
+                                symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD']  # Add other symbols as needed
+                                for sym in symbols:
+                                    if sym in text:
+                                        symbol = sym
+                                        break
+                                
+                                # Map symbol to internal representation
+                                if symbol == "USOIL":
+                                    symbol = "XBRUSD"
+                                elif symbol == "XAUUSD" or symbol == "XAU/USD":
+                                    symbol = "GOLD"
+
+                                # Find stop loss lines
+                                sl_keywords = ['SL', 'STOP LOSS', 'STOPLOSS']
+                                sl_line = [line for line in text.split('\n') if any(kw in line.upper() for kw in sl_keywords)]
+                                
+                                # Extract the stop loss value
+                                sl = None
+                                if sl_line:
+                                    sl_match = re.search(r'\d{1,5}(?:\.\d+)?', sl_line[0])
+                                    if sl_match:
+                                        sl = float(sl_match.group().lstrip('.'))
+
+                                # Find take profit lines
+                                tp_keywords = ['TP', 'TAKE PROFIT', 'TAKEPROFIT']
+                                tp_lines = [line for line in text.split('\n') if any(kw in line.upper() for kw in tp_keywords)]
+                                
+                                # Extract the TP values from those lines
+                                tps = []
+                                for line in tp_lines:
+                                    match = re.search(r'\d{3,5}(?:\.\d+)?', line)
+                                    if match:
+                                        tps.append(float(match.group()))
+
+                                # Extract the trade entry price (if it doesn't match SL or any TP)
+                                price_candidates = re.findall(r'\d{3,5}\.\d+', text)
+                                if price_candidates:
+                                    for candidate in price_candidates:
+                                        candidate_price = float(candidate)
+                                        if candidate_price not in tps and (sl is None or candidate_price != sl):
+                                            price = candidate_price
+                                            break
+                                
+                                return trade_type, symbol, sl, tps, price
+
+                            async def parse_and_send_messages(message_text):
+                                try:
+                                    trade_type, symbol, sl, tps, price = parse_message(message_text)
+                                    print_to_console_and_file(f'trade_type: {trade_type} symbol: {symbol} sl: {sl} tps: {tps} price: {price}')
+                                    if trade_type and symbol and sl and tps:
+                                        # if price and trade_type in ["Buy", "Sell"]:
+                                        #     symbol_info = mt5.symbol_info(symbol)
+                                        #     if symbol_info:
+                                        #         if trade_type == "Buy" and price < symbol_info.bid:
+                                        #             trade_type = "Buy Limit"
+                                        #         elif trade_type == "Sell" and price > symbol_info.ask:
+                                        #             trade_type = "Sell Limit"
+
+                                        # Only log when a TP and SL are given
+                                        if sl and tps:
+                                            for i, tp in enumerate(tps):    
+                                                if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
+                                                    if preProd:
+                                                        message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                    else:
+                                                        message = f"PROD!!!!\nActual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                                    if placeOrder(symbol, trade_type, sl, tp, price, magic_number,group_name):
+                                                        send_telegram_message(JDBCopyTrading_chat_id, message)
+                                                    else:
+                                                        print_to_console_and_file("Failed to place order")
+                                                    
+                                                if not takeAllTrades:
+                                                    break
+                                                        
+                                except IndexError:
+                                    print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
+                                except Exception as e:
+                                    tb = traceback.format_exc()
+
+                                    message = (
+                                        f"Unexpected error: {e}\n"
+                                        f"From: {group_name if 'group_name' in locals() or 'group_name' in globals() else '[unknown]'}\n"
+                                        f"trade_type: {trade_type if 'trade_type' in locals() or 'trade_type' in globals() else '[unknown]'}\n"
+                                        f"Symbol: {symbol if 'symbol' in locals() or 'symbol' in globals() else '[unknown]'}\n"
+                                        f"SL: {sl if 'sl' in locals() or 'sl' in globals() else '[unknown]'}\n"
+                                        f"TP: {tp if 'tp' in locals() or 'tp' in globals() else '[unknown]'}\n"
+                                        f"Date: {message_date_str if 'message_date_str' in locals() or 'message_date_str' in globals() else '[unknown]'}\n"
+                                        f"Traceback:\n{tb}"  # Include the full traceback, which contains the line number
+                                    )
+                                    print_to_console_and_file(message)
+
+
                             await parse_and_send_messages(message_text)
 
                             last_message_ids[group_name] = latest_message.id
