@@ -31,6 +31,8 @@ datetime lastPingTime = 0;
 void RequestHandler(string json)
 {
     CJAVal jsonObj;
+    
+    Print(json);
 
     if (jsonObj.Deserialize(json))
     {
@@ -122,6 +124,7 @@ void OpenTrade(string json)
       
         // Check the SL and price difference conditions
         double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
+        
                
         bool conditionsMet = false;
         
@@ -432,58 +435,89 @@ bool HTTPSend(int socket, string request)
 }
 
 
-bool HTTPRecv(int socket, uint timeout)
-{
-    char rsp[2000];  // Buffer size set to 2000 to handle large messages
-    string buffer = "";  // Buffer to accumulate incoming data
-    uint timeout_check = GetTickCount() + timeout;
+bool HTTPRecv(int socket, uint timeout) {
+    uchar response[];  // Accumulate the data as a whole (headers + body)
+    uchar block[];     // Separate read block
+    int len;           // Current block size
+    int lastLF = -1;   // Position of the last line feed found
+    int body = 0;      // Offset where document body starts
+    int size = -1;     // Document size according to Content-Length
+    string result = ""; // Result of the HTTP message
+    const static string content_length = "Content-Length:";
+    const static string crlf = "\r\n";
+    const static int crlf_length = 2;
 
-    while (GetTickCount() < timeout_check && !IsStopped())
-    {
-        int len = SocketIsReadable(socket);
+    uint start = GetTickCount();
+    do {
+        ResetLastError();
+        len = (ExtTLS ? SocketTlsReadAvailable(socket, block, 1024) : SocketReadAvailable(socket, block, 1024));
+        if (len > 0) {
+            const int n = ArraySize(response);
+            ArrayResize(response, n + len); // Resize the response array
+            ArrayCopy(response, block, n);  // Append the new block to response
 
-        if (len > 0)
-        {
-            int rsp_len = ExtTLS ? SocketTlsRead(socket, rsp, len) : SocketRead(socket, rsp, len, timeout);
-
-            if (rsp_len > 0)
-            {
-                string partial_result = CharArrayToString(rsp, 0, rsp_len);
-                buffer += partial_result;
-
-                // Check for complete JSON messages in the buffer
-                while (true)
-                {
-                    int start_pos = StringFind(buffer, "{");
-                    int end_pos = StringFind(buffer, "}");
-
-                    if (start_pos != -1 && end_pos != -1 && end_pos > start_pos)
-                    {
-                        // Extract complete JSON message
-                        string complete_json = StringSubstr(buffer, start_pos, end_pos - start_pos + 1);
-                        RequestHandler(complete_json);
-
-                        // Remove processed JSON message from buffer
-                        buffer = StringSubstr(buffer, end_pos + 1);
-                    }
-                    else
-                    {
-                        break;  // No complete JSON message found, exit the loop
+            // Parse multiple messages
+            while (true) {
+                // Parse headers to find the body start
+                if (body == 0) { // Look for the completion of the headers
+                    for (int i = n; i < ArraySize(response); ++i) {
+                        if (response[i] == '\n') { // LF
+                            if (lastLF == i - crlf_length) { // Found sequence "\r\n\r\n"
+                                body = i + 1;
+                                string headers = CharArrayToString(response, 0, i);
+                                Print("* HTTP-header found, header size: ", body);
+                                Print(headers);
+                                const int p = StringFind(headers, content_length);
+                                if (p > -1) {
+                                    int end_of_line = StringFind(headers, crlf, p);
+                                    if (end_of_line == -1)
+                                        end_of_line = StringLen(headers);
+                                    size = (int)StringToInteger(StringSubstr(headers, p + StringLen(content_length), end_of_line - p - StringLen(content_length)));
+                                    Print("* ", content_length, size);
+                                } else {
+                                    size = -1; // Server did not provide document length
+                                }
+                                break; // Header/body boundary found
+                            }
+                            lastLF = i;
+                        }
                     }
                 }
+
+                // Check if the full body is received
+                if (size > -1 && ArraySize(response) - body >= size) {
+                    Print("* Complete document received");
+                    result = CharArrayToString(response, body, size, CP_UTF8);
+                    if (StringLen(result) > 0) {
+                        RequestHandler(result);
+                        Print(result);
+                    }
+
+                    // Remove processed message from response array
+                    int processed_size = body + size;
+                    if (ArraySize(response) > processed_size) {
+                        ArrayCopy(response, response, 0, processed_size, ArraySize(response) - processed_size);
+                        ArrayResize(response, ArraySize(response) - processed_size);
+                    } else {
+                        ArrayResize(response, 0);
+                    }
+                    
+                    // Reset for next message
+                    body = 0;
+                    size = -1;
+                    lastLF = -1;
+                } else {
+                    break; // Exit while loop if no complete message is left
+                }
             }
-            else if (rsp_len == -1)
-            {
-                Print("Socket read error: ", GetLastError());
-                return false;
-            }
+        } else {
+            if (len == 0) Sleep(10); // Wait a bit for more data
         }
+    } while (GetTickCount() - start < timeout && !IsStopped() && !_LastError);
 
-        Sleep(1);
-    }
-
-    return StringLen(buffer) > 0;
+    return StringLen(result) > 0;
 }
+
 
 void Ping()
 {
@@ -564,4 +598,41 @@ void OnDeinit(const int reason)
         SocketClose(socket);
         Print("Socket closed.");
     }
+}
+
+//-------------------------------EXTRA FUNCTINOS REQUIRED-------------------------------
+
+int SocketReadAvailable(int socket, uchar &block[], const uint maxlen = INT_MAX)
+{
+   ArrayResize(block, 0);
+   const uint len = SocketIsReadable(socket);
+   if(len > 0)
+      return SocketRead(socket, block, fmin(len, maxlen), 10);
+   return 0;
+}
+
+int HexStringToInteger(const string hexString) 
+{
+    int result = 0;
+    int length = StringLen(hexString);
+
+    for (int i = 0; i < length; i++) {
+        char c = hexString[i];
+        int value;
+
+        if (c >= '0' && c <= '9') {
+            value = c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            value = c - 'a' + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            value = c - 'A' + 10;
+        } else {
+            Print("Invalid hexadecimal character: ", c);
+            return 0; // Handle invalid characters
+        }
+
+        result = result * 16 + value;
+    }
+
+    return result;
 }

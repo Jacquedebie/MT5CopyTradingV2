@@ -98,7 +98,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     # Check if an order with the same magic number, TP, and SL already exists
     orders = mt5.orders_get(symbol=symbol)
     for order in orders:
-        if order.magic == magic_number and order.tp == tp:
+        if order.magic == magic_number and order.tp == tp and order.sl == sl:
             print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp}, SL: {sl} already exists. Skipping order placement.")
             return False
         
