@@ -40,9 +40,17 @@ def init_db():
                   tbl_trade_profit REAL NOT NULL,
                   tbl_trade_symbol TEXT NOT NULL,
                   tbl_trade_billed INTEGER NOT NULL,
-                  tbl_trade_time TEXT NOT NULL,
+                  tbl_trade_timeOpen TEXT NOT NULL,
+                  tbl_trade_timeClose TEXT NOT NULL,
                   tbl_trade_type INTEGER NOT NULL,
-                  tbl_trade_swap REAL NOT NULL)''')
+                  tbl_trade_swap REAL NOT NULL,
+                  tbl_trade_drawdown REAL NOT NULL,
+                  tbl_trade_maxProfit REAL NOT NULL,
+                  tbl_trade_price REAL NOT NULL,
+                  tbl_trade_tp REAL NOT NULL,
+                  tbl_trade_sl REAL NOT NULL,
+                  tbl_trade_tsl	REAL NOT NULL
+                  )''')
     c.execute('''CREATE TABLE IF NOT EXISTS tbl_Communication
                  (pk_tbl_Communication INTEGER PRIMARY KEY AUTOINCREMENT,
                   tbl_Communication_AccountNumber INTEGER NOT NULL,
@@ -219,9 +227,16 @@ def set_column_widths(tree, table):
         "tbl_trade_profit": 80,
         "tbl_trade_symbol": 80,
         "tbl_trade_billed": 80,
-        "tbl_trade_time": 120,
+        "tbl_trade_timeOpen": 120,
+        "tbl_trade_timeClose": 120,
         "tbl_trade_type": 80,
-        "tbl_trade_swap": 80
+        "tbl_trade_swap": 80,
+        "tbl_trade_drawdown": 80,
+        "tbl_trade_maxProfit": 80,
+        "tbl_trade_price": 80,
+        "tbl_trade_tp": 80,
+        "tbl_trade_sl": 80,
+        "tbl_trade_tsl": 80
     }
 
     if table == 'tbl_trade':
@@ -262,9 +277,16 @@ tables = {
         'tbl_trade_profit': 'Profit',
         'tbl_trade_symbol': 'Symbol',
         'tbl_trade_billed': 'Billed',
-        'tbl_trade_time': 'Time',
+        'tbl_trade_timeOpen': 'Open Time',
+        'tbl_trade_timeClose': 'Close Time',
         'tbl_trade_type': 'Type',
-        'tbl_trade_swap': 'Swap'
+        'tbl_trade_swap': 'Swap',
+        'tbl_trade_drawdown': 'Drawdown',
+        'tbl_trade_maxProfit': 'Max Profit',
+        'tbl_trade_price': 'Price',
+        'tbl_trade_tp': 'TP',
+        'tbl_trade_sl': 'SL',
+        'tbl_trade_tsl': 'TSL'
     }),
     'tbl_Communication': ('pk_tbl_Communication', {
         'tbl_Communication_AccountNumber': 'Account Number',
@@ -420,7 +442,7 @@ user_tree.configure(yscrollcommand=user_vsb.set)
 user_vsb.grid(row=1, column=11, sticky="ns")
 
 # Treeview for tbl_trade
-trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_time", "tbl_trade_type", "tbl_trade_swap"], show='headings')
+trade_tree = ttk.Treeview(filter_frame, columns=["pk_tbl_trade", "tbl_trade_account", "tbl_trade_ticket", "tbl_trade_magic", "tbl_trade_volume", "tbl_trade_profit", "tbl_trade_symbol", "tbl_trade_billed", "tbl_trade_timeOpen", "tbl_trade_type", "tbl_trade_swap"], show='headings')
 
 # Set column widths
 column_widths = {
@@ -432,7 +454,7 @@ column_widths = {
     "tbl_trade_profit": 80,
     "tbl_trade_symbol": 80,
     "tbl_trade_billed": 80,
-    "tbl_trade_time": 120,
+    "tbl_trade_timeOpen": 120,
     "tbl_trade_type": 80,
     "tbl_trade_swap": 80
 }
@@ -617,7 +639,7 @@ def RunTradeForTheWeek():
                     FROM
                         tbl_trade
                     WHERE
-                        DATE(tbl_trade_time) BETWEEN ? AND ?
+                        DATE(tbl_trade_timeOpen) BETWEEN ? AND ?
                         AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
                     GROUP BY
                         tbl_trade_account
@@ -629,7 +651,7 @@ def RunTradeForTheWeek():
             # Insert or update the summary records in tbl_Transactions
             for account_number, total_trades, total_profit in trade_summaries:
                 total_profit_share = round(total_profit * PROFIT_SHARE_PERCENTAGE, 2)
-                if total_profit_share < 0:
+                if total_profit < 0:
                     total_profit_share = 0
 
                 c.execute('''
@@ -679,7 +701,7 @@ def RunTradeForTheWeek():
                         tbl_trade
                     WHERE
                         tbl_trade_account = ?
-                        AND DATE(tbl_trade_time) BETWEEN ? AND ?
+                        AND DATE(tbl_trade_timeOpen) BETWEEN ? AND ?
                         AND pk_tbl_trade NOT IN (SELECT fk_tbl_trade FROM tbl_TradeTransaction)
                 ''', (transaction_id, account_number, current_start_date, current_end_date))
 
