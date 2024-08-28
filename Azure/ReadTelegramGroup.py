@@ -317,7 +317,7 @@ async def process_all_group_messages(start_date, session):
                                             f"trade_type: {trade_type if 'trade_type' in locals() or 'trade_type' in globals() else '[unknown]'}\n"
                                             f"Symbol: {symbol if 'symbol' in locals() or 'symbol' in globals() else '[unknown]'}\n"
                                             f"SL: {sl if 'sl' in locals() or 'sl' in globals() else '[unknown]'}\n"
-                                            f"TP: {tp if 'tp' in locals() or 'tp' in globals' else '[unknown]'}\n"
+                                            f"TP: {tp if 'tp' in locals() or 'tp' in globals() else '[unknown]'}\n"
                                             f"Date: {message_date_str if 'message_date_str' in locals() or 'message_date_str' in globals() else '[unknown]'}\n"
                                             f"Traceback:\n{tb}"  # Include the full traceback, which contains the line number
                                         )
