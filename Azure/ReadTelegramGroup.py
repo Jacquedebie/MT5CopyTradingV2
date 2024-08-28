@@ -198,8 +198,8 @@ async def process_all_group_messages(start_date, session):
                 result = await client(GetHistoryRequest(
                     peer=PeerChannel(entity.id),
                     limit=100,  # Fetch up to 100 messages at a time
+                    offset_id=last_message_ids[group_name],  # Start fetching after the last processed message
                     offset_date=None,
-                    offset_id=0,
                     max_id=0,
                     min_id=0,
                     add_offset=0,
@@ -208,10 +208,10 @@ async def process_all_group_messages(start_date, session):
 
                 messages = result.messages
                 if messages:
-                    for message in messages:
+                    for message in reversed(messages):  # Process messages from oldest to newest
                         message_date = message.date.replace(tzinfo=timezone.utc)
 
-                        if message.id != last_message_ids[group_name] and message_date >= start_date:
+                        if message.id > last_message_ids[group_name] and message_date >= start_date:
                             if message.message is not None:  # Check if the message is not None
                                 message_text = message.message.upper()  # Convert message to uppercase
 
@@ -290,6 +290,14 @@ async def process_all_group_messages(start_date, session):
                                         trade_type, symbol, sl, tps, price = parse_message(message_text)
                                         print_to_console_and_file(f'trade_type: {trade_type} symbol: {symbol} sl: {sl} tps: {tps} price: {price}')
                                         if trade_type and symbol and sl and tps:
+                                            # if price and trade_type in ["Buy", "Sell"]:
+                                            #     symbol_info = mt5.symbol_info(symbol)
+                                            #     if symbol_info:
+                                            #         if trade_type == "Buy" and price < symbol_info.bid:
+                                            #             trade_type = "Buy Limit"
+                                            #         elif trade_type == "Sell" and price > symbol_info.ask:
+                                            #             trade_type = "Sell Limit"
+
                                             # Only log when a TP and SL are given
                                             if sl and tps:
                                                 for i, tp in enumerate(tps):    
@@ -298,7 +306,7 @@ async def process_all_group_messages(start_date, session):
                                                             message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                                         else:
                                                             message = f"PROD!!!!\nActual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
-                                                        if placeOrder(symbol, trade_type, sl, tp, price, magic_number,group_name):
+                                                        if placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
                                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                                         else:
                                                             print_to_console_and_file("Failed to place order")
@@ -323,17 +331,15 @@ async def process_all_group_messages(start_date, session):
                                         )
                                         print_to_console_and_file(message)
 
-
                                 await parse_and_send_messages(message_text)
 
-                                last_message_ids[group_name] = message.id
+                                last_message_ids[group_name] = message.id  # Update the last message ID after processing
 
         except Exception as e:
             print_to_console_and_file(f"Error processing group messages: {e}")
 
         # Wait for 10 seconds before checking again
         await asyncio.sleep(10)
-
 
 
 #Telegram Groups
