@@ -48,9 +48,7 @@ client = TelegramClient('session_name', api_id, api_hash)
 groups_info = {}
 
 # List of symbols to look for
-symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD']  # Add more symbols as needed
-phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
-
+symbols = ['XAUUSD', 'GOLD' , 'XAU/USD']  # Add more symbols as needed
 #'BTCUSD', spread is te hoog
 #, 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD' Focus net op GOUD
 
@@ -103,7 +101,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     orders = mt5.orders_get(symbol=symbol)
     for order in orders:
         if order.magic == magic_number and order.tp == tp: #and order.sl == sl
-            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp} already exists. Skipping order placement.")
+            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp}, SL: {sl} already exists. Skipping order placement.")
             return False
         
     # If price is None, assign the current market price based on trade type
@@ -224,14 +222,9 @@ async def process_all_group_messages(start_date, session):
                             message_text = latest_message.message.upper()  # Convert message to uppercase
                             message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
 
-                            for phrase in phrases_to_skip:
-                                if phrase in message_text:
-                                    print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
-                                    continue  # Skip processing this message
-                                
-                            # if "VIP GROUP OPEN FOR" in message_text:
-                            #     print_to_console_and_file(f"Skipping trade from {group_name} due to 'VIP GROUP OPEN FOR' in the message.")
-                            #     continue  # Skip processing this message
+                            if "VIP GROUP OPEN FOR" in message_text:
+                                print_to_console_and_file(f"Skipping trade from {group_name} due to 'VIP GROUP OPEN FOR' in the message.")
+                                continue  # Skip processing this message
                             
                             print_to_console_and_file(f'--------------{group_name}-------------------')
                             print_to_console_and_file(f"{group_name}: {message_text} at {message_date_str}")
