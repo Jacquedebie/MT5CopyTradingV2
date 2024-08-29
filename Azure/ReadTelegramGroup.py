@@ -118,15 +118,15 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
 
     # Ensure price, sl, and tp are floats
     price = float(price)
-    
-
+    sl = float(sl)
+    tp = float(tp)
     # Check if SL is valid
     if not is_valid_sl(price, sl, trade_type, symbol_info):
         print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
         if trade_type == "Buy" or trade_type == "Buy Limit":
-            sl = price - (500 * symbol_info.point)
+            sl = sl - (500 * symbol_info.point)
         elif trade_type == "Sell" or trade_type == "Sell Limit":
-            sl = price + (500 * symbol_info.point)
+            sl = sl + (500 * symbol_info.point)
 
         print_to_console_and_file(f"New SL set to {sl}")
         # You may choose to return False here to skip placing the order if SL is invalid.
@@ -156,6 +156,10 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     else:
         print_to_console_and_file(f"Unsupported trade type: {trade_type}")
         return False
+
+    price = float(price)
+    sl = float(sl)
+    tp = float(tp)
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
