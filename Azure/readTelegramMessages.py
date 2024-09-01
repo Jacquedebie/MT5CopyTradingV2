@@ -421,7 +421,7 @@ async def main():
     
     update_task = asyncio.create_task(updateTelegramGroups())
 
-    print(groups_info)
+    #print(groups_info)
 
     InitializeAccounts()
     
