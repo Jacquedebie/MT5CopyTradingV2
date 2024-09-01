@@ -218,7 +218,7 @@ def InitializeAccounts():
     # for row in db_cursor.fetchall():
     #     counter = counter + 1
     #     # MAIN
-    instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
+    instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
 
     if not mt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
         print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
