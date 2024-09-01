@@ -14,7 +14,7 @@ import subprocess
 
 from datetime import datetime, timedelta
 
-debug = True
+debug = False
 
 if(debug):
     ADDRESS = "127.0.0.1"
@@ -399,8 +399,6 @@ async def authenticate(writer, json_data):
 #SERVER CALLS
 
 async def Server_OpenTrade(json_data):
-
-    print("Server_OpenTrade")
 
     insert_tradeServer(json_data)
 
