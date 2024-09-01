@@ -36,7 +36,6 @@ PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
 dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
-lotSizeToUse = 0.01
 preProd = True
 takeAllTrades = False
 symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD','OIL-OCT24']  # Add more symbols as needed
@@ -72,7 +71,6 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
         print_to_console_and_file(f"Symbol {symbol} not found")
         return False
 
-    print(lotSizeToUse)
     lotSizeToUse = 0.01
     min_lot_size = symbol_info.volume_min
     max_lot_size = symbol_info.volume_max
@@ -190,7 +188,7 @@ def populate_telegram_groups():
     groups_info = {row[0]: row[1] for row in rows}
 
     # Manually add "𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™" to the groups_info dictionary
-    groups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
+    #groups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
 
 
     conn.close()
