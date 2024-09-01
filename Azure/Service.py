@@ -958,7 +958,7 @@ if __name__ == "__main__":
     dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
         # Get the absolute path to the script
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ReadTelegramGroup.py')
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'readTelegramMessages.py')
 
     # Start a new command prompt and run the script using Python 3.10
     subprocess.Popen(['start', 'cmd', '/k', f'py -3.10 {script_path}'], shell=True)
