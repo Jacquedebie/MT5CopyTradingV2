@@ -292,6 +292,7 @@ async def handle_new_message(event):
                 def parse_message(text):
                     trade_type = None
                     price = None
+                    symbol = None
                     
                     # Determine trade type
                     if "SELL LIMIT" in text:
@@ -306,7 +307,6 @@ async def handle_new_message(event):
                     # Determine symbol
                     
                     for sym in symbols:
-                        print(sym)
                         if sym in text:
                             symbol = sym
                             break
@@ -353,7 +353,7 @@ async def handle_new_message(event):
                 async def parse_and_send_messages(message_text):
                     try:
                         trade_type, symbol, sl, tps, price = parse_message(message_text)
-                        print_to_console_and_file(f'trade_type: {trade_type} symbol: {symbol} sl: {sl} tps: {tps} price: {price}')
+                        #print_to_console_and_file(f'trade_type: {trade_type} symbol: {symbol} sl: {sl} tps: {tps} price: {price}')
                         if trade_type and symbol and sl and tps:
                             # if price and trade_type in ["Buy", "Sell"]:
                             #     symbol_info = mt5.symbol_info(symbol)
@@ -416,6 +416,7 @@ populate_telegram_groups()
 print_to_console_and_file(groups_info)
 
 async def main():
+    global symbols
     # Populate the groups_info with data from the database
     
     update_task = asyncio.create_task(updateTelegramGroups())
