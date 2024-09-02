@@ -15,9 +15,16 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 
 # Your API ID, Hash, and Phone
-api_id = '21789309'
-api_hash = '25cfde9a425a3658172d011e45e81a2c'
-phone = '+2784583071'
+#JDB
+# api_id = '21789309'
+# api_hash = '25cfde9a425a3658172d011e45e81a2c'
+# phone = '+2784583071'
+
+#JW
+api_id = '21265406'
+api_hash = 'aed729c24e62f0aa55e263ca153bbc3e'
+phone = '+27744183636'  # e.g. +123456789
+
 bot_token = '6695292881:AAHoEsUyrgkHAYqsbXcn9XWN9Y7nNTi5Jy4'
 JDBCopyTrading_chat_id = '-1001920185934'
 JDBPrivate_chat_id = '-1001920185934'
