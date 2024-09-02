@@ -66,6 +66,9 @@ def is_valid_sl(price, sl, trade_type, symbol_info):
 def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     print_to_console_and_file(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
 
+    if not mt5.initialize():
+        InitializeAccounts()
+        
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print_to_console_and_file(f"Symbol {symbol} not found")
