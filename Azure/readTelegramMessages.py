@@ -10,7 +10,7 @@ import traceback
 import asyncio
 import re
 import requests
-import Meta1 as syntheticMt5
+import Meta3 as syntheticMt5
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -563,9 +563,9 @@ async def handle_new_message(event):
                                 for i, tp in enumerate(tps):    
                                     if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
                                         if preProd:
-                                            message = f"Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                            message = f"Actual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                         else:
-                                            message = f"PROD!!!!\nActual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
+                                            message = f"PROD!!!!\nActual TRADE\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
                                         if placeOrder(symbol, trade_type, sl, tp, price, magic_number,group_name):
                                             send_telegram_message(JDBCopyTrading_chat_id, message)
                                         else:
@@ -691,26 +691,31 @@ async def handle_new_message(event):
                         trade_type = "Sell"
 
                     elif "BOOM 300" in text: 
-                        symbol = "BOOM 300 Index"
+                        symbol = "Boom 300 Index"
                         trade_type = "Buy"
 
-                    elif "BOOM 600" in text: 
-                        symbol = "BOOM 600 Index"
-                        trade_type = "Buy"
-
-                    elif "BOOM 900" in text: 
-                        symbol = "BOOM 900 Index"
-                        trade_type = "Buy"
-
-                    elif "CRASH 600" in text: 
-                        symbol = "CRASH 600 Index"
+                    elif "CRASH 300" in text: 
+                        symbol = "Crash 300 Index"
                         trade_type = "Sell"
 
-                    elif "CRASH 900" in text: 
-                        symbol = "CRASH 900 Index"
+                    elif "BOOM" in text and "600" in text:
+                        symbol = "Boom 600 Index"
+                        trade_type = "Buy"
+
+                    elif "BOOM" in text and "900" in text:
+                        symbol = "Boom 900 Index"
+                        trade_type = "Buy"
+
+                    elif "CRASH" in text and "600" in text:
+                        symbol = "Crash 600 Index"
+                        trade_type = "Sell"
+
+                    elif "CRASH" in text and "900" in text:
+                        symbol = "Crash 900 Index"
                         trade_type = "Sell"
                         
                     else:
+                        print_to_console_and_file(f"Symbol not found in text: {text}")    
                         return trade_type, symbol, None, None
                     
                     num_pips = 20
