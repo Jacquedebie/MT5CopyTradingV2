@@ -46,7 +46,7 @@ dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 preProd = True
 takeAllTrades = False
 symbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
-phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
+phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝"]
 
 def print_to_console_and_file(message):
     with open(os.path.join(DIRECTORY, "SyntheticTelegramOutput.txt"), "a", encoding="utf-8") as outputfile:
@@ -70,15 +70,15 @@ def is_valid_sl(price, sl, trade_type, symbol_info):
         return sl > price and (sl - price) >= stop_level * symbol_info.point
     return False
 
-def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
-    print_to_console_and_file(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
+def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
+    print_to_console_and_file(f"Place order {symbol} {trade_type} SL: {sl} Price: {price} Magic: {magic_number}")
 
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print_to_console_and_file(f"Symbol {symbol} not found")
         return False
 
-    lotSizeToUse = 0.01
+    lotSizeToUse = 0.2
     min_lot_size = symbol_info.volume_min
     max_lot_size = symbol_info.volume_max
     lot_step = symbol_info.volume_step
@@ -93,42 +93,9 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
         lotSizeToUse = min_lot_size
 
     # Check if an order with the same magic number, TP, and SL already exists
+    
     sl = float(sl)
-    tp = "{:.2f}".format(tp)
-    orders = mt5.orders_get(symbol=symbol)
-    for order in orders:
-        if order.magic == magic_number and order.tp == tp: #and order.sl == sl
-            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp} already exists. Skipping order placement.")
-            return False
-        
-    # If price is None, assign the current market price based on trade type
-    if price is None:
-        if trade_type == "Buy" or trade_type == "Buy Limit":
-            price = symbol_info.ask
-            print_to_console_and_file(f"Price is None. Setting price to current ask: {price}")
-        elif trade_type == "Sell" or trade_type == "Sell Limit":
-            price = symbol_info.bid
-            print_to_console_and_file(f"Price is None. Setting price to current bid: {price}")
-        else:
-            print_to_console_and_file(f"Unsupported trade type: {trade_type}")
-            return False
-
-    # Ensure price, sl, and tp are floats
-    price = float(price)
-    sl = float(sl)
-    tp = float(tp)
-    # Check if SL is valid
-    if not is_valid_sl(price, sl, trade_type, symbol_info):
-        print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
-        if trade_type == "Buy" or trade_type == "Buy Limit":
-            sl = sl - (500 * symbol_info.point)
-        elif trade_type == "Sell" or trade_type == "Sell Limit":
-            sl = sl + (500 * symbol_info.point)
-
-        print_to_console_and_file(f"New SL set to {sl}")
-        # You may choose to return False here to skip placing the order if SL is invalid.
-        # return False 
-
+    
     # Adjust price according to the trade type
     if trade_type == "Buy Limit":
         order_type = mt5.ORDER_TYPE_BUY_LIMIT
@@ -153,26 +120,46 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     else:
         print_to_console_and_file(f"Unsupported trade type: {trade_type}")
         return False
-
+    
     price = float(price)
     sl = float(sl)
-    tp = float(tp)
-
+    
+    # Check if symbol is available
+    symbol_info = mt5.symbol_info(symbol)
+    if symbol_info is None:
+        print_to_console_and_file(f"Symbol {symbol} not found")
+        return False
+    if not symbol_info.visible:
+        if not mt5.symbol_select(symbol, True):
+            print_to_console_and_file(f"Failed to select symbol {symbol}")
+            return False
+        
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
         "volume": float(lotSizeToUse),
         "type": order_type,
         "price": float(price),
-        "tp": float(tp),
         "sl": float(sl),
-        "magic": magic_number,
-        "type_filling": mt5.ORDER_FILLING_IOC,
-        "comment": group_name
+        
+        "type_filling": mt5.ORDER_FILLING_FOK,
+        "comment": group_name,
     }
 
     order_result = mt5.order_send(request)
-    if order_result.retcode != mt5.TRADE_RETCODE_DONE:
+    if order_result is None:
+        print_to_console_and_file("Order send failed, no result returned")
+        print_to_console_and_file(f"Trade Request Details:\n"
+            f"Action: {request['action']}\n"
+            f"Symbol: {request['symbol']}\n"
+            f"Volume: {request['volume']}\n"
+            f"Order Type: {request['type']}\n"
+            f"Price: {request['price']}\n"
+            f"Stop Loss (SL): {request['sl']}\n"
+            f"Type Filling: {request['type_filling']}\n"
+            f"Comment: {request['comment']}")
+        return False
+    elif order_result.retcode != mt5.TRADE_RETCODE_DONE:
         print_to_console_and_file("Error placing order:" + order_result.comment)
         return False
     else:
@@ -197,9 +184,10 @@ def populate_telegram_groups():
     # Manually add "𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™" to the groups_info dictionary
     groups_info["JDB Copy Signals"] = "110"
     groups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
-    groups_info["DREAM CHASERS F✘"] = "112"
-    groups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "113"
-    groups_info["KADENFX ACADEMY"] = "114"
+    groups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
+    # groups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "113"
+    # groups_info["KADENFX ACADEMY"] = "114"
+    groups_info["KT Synthetics"] = "115"
 
 
     #conn.close()
@@ -244,10 +232,64 @@ def send_telegram_message(chat_id, message):
     response = requests.post(url, data=data)
     return response.json()
 
+def calculate_stop_loss(symbol, num_pips):
+    """
+    Calculate the stop loss price for a given symbol based on the entry price and number of pips.
+    
+    :param symbol: The trading symbol (e.g., "Boom 1000 Index").
+    :param num_pips: The number of pips for the stop loss.
+    :return: The stop loss price for the found position or None if no position is found.
+    """
+
+    # Get the current position for the specified symbol
+    symbol_info = mt5.symbol_info(symbol)
+        
+    if "crash" in symbol.lower():
+        position_type = 0      # Position type: 0 for Buy, 1 for Sell
+        entry_price = symbol_info.ask  # Get the entry price from the position
+    else:
+        position_type = 1      # Position type: 0 for Buy, 1 for Sell
+        entry_price = symbol_info.bid
+    
+    
+    if symbol == "Crash 300 Index":
+        pip_value = 0.5
+    elif symbol == "Crash 500 Index":
+        pip_value = 0.5
+    elif symbol == "Crash 600 Index":
+        pip_value = 0.5
+    elif symbol == "Crash 900 Index":
+        pip_value = 0.5
+    elif symbol == "Crash 1000 Index":
+        pip_value = 0.5
+    elif symbol == "Boom 300 Index":
+        pip_value = 0.5
+    elif symbol == "Boom 500 Index":
+        pip_value = 0.5
+    elif symbol == "Boom 600 Index":
+        pip_value = 0.5
+    elif symbol == "Boom 900 Index":
+        pip_value = 0.5
+    elif symbol == "Boom 1000 Index":
+        pip_value = 2
+        
+    
+    price_difference = pip_value * num_pips
+    
+    if position_type == 0:  # Buy position
+        stop_loss = entry_price + price_difference  # SL below entry price
+    elif position_type == 1:  # Sell position
+        stop_loss = entry_price - price_difference  # SL above entry price
+    else:
+        stop_loss = 0
+    
+    print_to_console_and_file(f"Stop Loss for {symbol} at {entry_price} with {num_pips} pips: {stop_loss}")
+    return stop_loss
+
 async def handle_new_message(event):
     message = event.message
     group_id = event.chat_id
-    
+
     # Check if event.chat is not None
     if event.chat and hasattr(event.chat, 'title'):
         group_name = event.chat.title
@@ -302,67 +344,74 @@ async def handle_new_message(event):
                 print_to_console_and_file('---------------------------------')
                 
                 def parse_message(text):
+                    text = text.upper()
+
                     trade_type = None
                     price = None
                     symbol = None
                     
                     #check if boom or crah
-                    if "BoomM500" in text: #DREAM CHASERS F✘
-                        symbol = "BOOM500"
-                    elif "Boom 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
-                        symbol = "BOOM500"
+                    if "BOOMM500" in text: #DREAM CHASERS F✘
+                        symbol = "Boom 500 Index"
+                        trade_type = "Buy"
+                    elif "BOOM 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
+                        symbol = "Boom 500 Index"
+                        trade_type = "Buy"
 
 
-                    elif "Crash 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
-                        symbol = "CRASH500"
-                    
+                    elif "CRASH 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
+                        symbol = "Crash 500 Index"
+                        trade_type = "Sell"
+                    elif "CRASH" in text and "500" in text:
+                        symbol = "Crash 500 Index"
+                        trade_type = "Sell"
                     
                     elif "BOOM 1K" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
-                        symbol = "BOOM1000"
+                        symbol = "Boom 1000 Index"
+                        trade_type = "Buy"
                     elif "BOOM 1000" in text: #KT Synthetics
-                        symbol = "BOOM1000"
+                        symbol = "Boom 1000 Index"
+                        trade_type = "Buy"
                     elif "BOOM1000" in text: #DREAM CHASERS F✘
-                        symbol = "BOOM1000"
+                        symbol = "Boom 1000 Index"
+                        trade_type = "Buy"
 
                     elif "CRASH 1K" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
-                        symbol = "CRASH1000"
+                        symbol = "Crash 1000 Index"
+                        trade_type = "Sell"
                     elif "CRASH 1000" in text: #KT Synthetics
-                        symbol = "CRASH1000"
+                        symbol = "Crash 1000 Index"
+                        trade_type = "Sell"
                     elif "CRASH1000" in text: #DREAM CHASERS F✘
-                        symbol = "CRASH1000"     
+                        symbol = "Crash 1000 Index"     
+                        trade_type = "Sell"
+                    else:
+                        return trade_type, symbol, None, None
                     
-                    sl = 0
-                    tps = []
-                    return trade_type, symbol, sl, tps, price
+                    num_pips = 20
+                    print_to_console_and_file("Before Calculating SL")
+                    sl = calculate_stop_loss(symbol, num_pips)
+                    print_to_console_and_file("After Calculating SL")
+
+                    return trade_type, symbol, sl, price
 
                 async def parse_and_send_messages(message_text):
                     try:
-                        trade_type, symbol, sl, tps, price = parse_message(message_text)
-                        #print_to_console_and_file(f'trade_type: {trade_type} symbol: {symbol} sl: {sl} tps: {tps} price: {price}')
-                        if trade_type and symbol and sl and tps:
-                            # if price and trade_type in ["Buy", "Sell"]:
-                            #     symbol_info = mt5.symbol_info(symbol)
-                            #     if symbol_info:
-                            #         if trade_type == "Buy" and price < symbol_info.bid:
-                            #             trade_type = "Buy Limit"
-                            #         elif trade_type == "Sell" and price > symbol_info.ask:
-                            #             trade_type = "Sell Limit"
+                        trade_type, symbol, sl, price = parse_message(message_text)
+                        print_to_console_and_file(f"Trade Type: {trade_type}, Symbol: {symbol}, SL: {sl}, Price: {price}")
 
-                            # Only log when a TP and SL are given
-                            if sl and tps:
-                                for i, tp in enumerate(tps):    
-                                    if i < 4 and tp:  # Ensure we only handle up to 4 TPs and TP is not empty
-                                        if preProd:
-                                            message = f"Synthetic Actual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
-                                        else:
-                                            message = f"Synthetic PROD!!!!\nActual TRADE OUTSIDE OF COUNTER\nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰 TP{i+1}: {tp}\nDate: {message_date_str}"
-                                        # if placeOrder(symbol, trade_type, sl, tp, price, magic_number,group_name):
-                                        send_telegram_message(JDBCopyTrading_chat_id, message)
-                                        # else:
-                                        #     print_to_console_and_file("Failed to place order")
-                                        
-                                    if not takeAllTrades:
-                                        break
+                        if trade_type is not None and symbol is not None and sl is not None:
+                            if preProd:
+                                message = f"Synthetic TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰\nDate: {message_date_str}"
+                            else:
+                                message = f"Synthetic PROD!!!! TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n\nDate: {message_date_str}"
+                            
+                            if placeOrderNoTP(symbol, trade_type, sl, price, magic_number,group_name):
+                                send_telegram_message(JDBCopyTrading_chat_id, message)
+                            else:
+                                print_to_console_and_file("Failed to place order")
+                        
+                    
                                             
                     except IndexError:
                         print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
@@ -424,3 +473,4 @@ async def main():
 # Run the client
 with client:
     client.loop.run_until_complete(main())
+    
