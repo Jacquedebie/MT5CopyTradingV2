@@ -693,6 +693,22 @@ async def handle_new_message(event):
                     elif "BOOM 300" in text: 
                         symbol = "BOOM 300 Index"
                         trade_type = "Buy"
+
+                    elif "BOOM 600" in text: 
+                        symbol = "BOOM 600 Index"
+                        trade_type = "Buy"
+
+                    elif "BOOM 900" in text: 
+                        symbol = "BOOM 900 Index"
+                        trade_type = "Buy"
+
+                    elif "CRASH 600" in text: 
+                        symbol = "CRASH 600 Index"
+                        trade_type = "Sell"
+
+                    elif "CRASH 900" in text: 
+                        symbol = "CRASH 900 Index"
+                        trade_type = "Sell"
                         
                     else:
                         return trade_type, symbol, None, None
