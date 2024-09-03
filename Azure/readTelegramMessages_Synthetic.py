@@ -166,12 +166,13 @@ def populate_telegram_groups():
     # syntheticGroups_info = {row[0]: row[1] for row in rows}
 
     # Manually add "𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™" to the syntheticGroups_info dictionary
-    syntheticGroups_info["JDB Copy Signals"] = "110"
+    syntheticGroups_info["JDB Copy Synthetic"] = "110"
     syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
     syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
     # syntheticGroups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "113"
     # syntheticGroups_info["KADENFX ACADEMY"] = "114"
     syntheticGroups_info["KT Synthetics"] = "115"
+    syntheticGroups_info["UNTOUCHABLE 💙💸"] = "116"
 
 
     #conn.close()
