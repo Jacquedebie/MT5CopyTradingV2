@@ -63,12 +63,33 @@ def is_valid_sl(price, sl, trade_type, symbol_info):
         return sl > price and (sl - price) >= stop_level * symbol_info.point
     return False
 
+def adjust_stop_loss(price, sl, trade_type, symbol_info):
+    max_attempts = 10  # Prevent infinite loops by setting a maximum number of adjustments
+
+    while max_attempts > 0:
+        if is_valid_sl(price, sl, trade_type, symbol_info):
+            break  # Stop the loop if the SL is valid
+        
+        print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
+        
+        if trade_type == "Buy" or trade_type == "Buy Limit":
+            sl = sl - (500 * symbol_info.point)
+        elif trade_type == "Sell" or trade_type == "Sell Limit":
+            sl = sl + (500 * symbol_info.point)
+        
+        max_attempts -= 1  # Decrement the attempt counter
+
+    if max_attempts == 0:
+        print_to_console_and_file("Maximum adjustments reached. SL might still be invalid.")
+    
+    return sl
+
 def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     print_to_console_and_file(f"Place order {symbol} {trade_type} TP: {tp} SL: {sl} Price: {price} Magic: {magic_number}")
 
     if not mt5.initialize():
         InitializeAccounts()
-        
+
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
         print_to_console_and_file(f"Symbol {symbol} not found")
@@ -114,16 +135,19 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     sl = float(sl)
     tp = float(tp)
     # Check if SL is valid
-    if not is_valid_sl(price, sl, trade_type, symbol_info):
-        print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
-        if trade_type == "Buy" or trade_type == "Buy Limit":
-            sl = sl - (500 * symbol_info.point)
-        elif trade_type == "Sell" or trade_type == "Sell Limit":
-            sl = sl + (500 * symbol_info.point)
 
-        print_to_console_and_file(f"New SL set to {sl}")
-        # You may choose to return False here to skip placing the order if SL is invalid.
-        # return False 
+    sl = adjust_stop_loss(price, sl, trade_type, symbol_info)
+
+    # if not is_valid_sl(price, sl, trade_type, symbol_info):
+    #     print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
+    #     if trade_type == "Buy" or trade_type == "Buy Limit":
+    #         sl = sl - (500 * symbol_info.point)
+    #     elif trade_type == "Sell" or trade_type == "Sell Limit":
+    #         sl = sl + (500 * symbol_info.point)
+
+    #     print_to_console_and_file(f"New SL set to {sl}")
+    #     # You may choose to return False here to skip placing the order if SL is invalid.
+    #     # return False 
 
     # Adjust price according to the trade type
     if trade_type == "Buy Limit":
