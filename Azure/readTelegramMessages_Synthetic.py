@@ -10,6 +10,7 @@ import traceback
 import asyncio
 import re
 import requests
+import Meta1 as syntheticMt5
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -34,7 +35,7 @@ client = TelegramClient('session_name', api_id, api_hash)
 
 # Dictionary to keep track of messages read per group
 read_messages = {}
-groups_info = {}
+syntheticGroups_info = {}
 
 # Timestamp of when the application started, made "offset-aware"
 app_start_time = datetime.now(timezone.utc)
@@ -45,35 +46,18 @@ dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
 preProd = True
 takeAllTrades = False
-symbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
-phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝"]
+syntheticSymbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
+syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝"]
 
 def print_to_console_and_file(message):
     with open(os.path.join(DIRECTORY, "SyntheticTelegramOutput.txt"), "a", encoding="utf-8") as outputfile:
         print(message, file=outputfile)  # Print to the file
     print(message)  # Print to the console
 
-def is_valid_sl(price, sl, trade_type, symbol_info):
-    # Ensure price and SL are floats for comparison
-    price = float(price)
-    sl = float(sl)
-    
-    # Access the stop level; default to 0 if not available
-    stop_level = symbol_info.trade_stops_level if hasattr(symbol_info, 'trade_stops_level') else 0
-
-    # Adjust the logic based on trade type
-    if  stop_level == 0:
-        return False
-    elif trade_type == "Buy" or trade_type == "Buy Limit":
-        return sl < price and (price - sl) >= stop_level * symbol_info.point
-    elif trade_type == "Sell" or trade_type == "Sell Limit":
-        return sl > price and (sl - price) >= stop_level * symbol_info.point
-    return False
-
 def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
     print_to_console_and_file(f"Place order {symbol} {trade_type} SL: {sl} Price: {price} Magic: {magic_number}")
 
-    symbol_info = mt5.symbol_info(symbol)
+    symbol_info = syntheticMt5.symbol_info(symbol)
     if symbol_info is None:
         print_to_console_and_file(f"Symbol {symbol} not found")
         return False
@@ -98,22 +82,22 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
     
     # Adjust price according to the trade type
     if trade_type == "Buy Limit":
-        order_type = mt5.ORDER_TYPE_BUY_LIMIT
+        order_type = syntheticMt5.ORDER_TYPE_BUY_LIMIT
         if price > symbol_info.ask:
             print_to_console_and_file(f"Incorrect price for Buy Limit. Adjusting price from {price} to {symbol_info.ask}")
             price = symbol_info.ask
     elif trade_type == "Sell Limit":
-        order_type = mt5.ORDER_TYPE_SELL_LIMIT
+        order_type = syntheticMt5.ORDER_TYPE_SELL_LIMIT
         if price < symbol_info.bid:
             print_to_console_and_file(f"Incorrect price for Sell Limit. Adjusting price from {price} to {symbol_info.bid}")
             price = symbol_info.bid
     elif trade_type == "Buy":
-        order_type = mt5.ORDER_TYPE_BUY
+        order_type = syntheticMt5.ORDER_TYPE_BUY
         if price != symbol_info.ask:
             print_to_console_and_file(f"Incorrect price for Buy. Adjusting price from {price} to {symbol_info.ask}")
             price = symbol_info.ask
     elif trade_type == "Sell":
-        order_type = mt5.ORDER_TYPE_SELL
+        order_type = syntheticMt5.ORDER_TYPE_SELL
         if price != symbol_info.bid:
             print_to_console_and_file(f"Incorrect price for Sell. Adjusting price from {price} to {symbol_info.bid}")
             price = symbol_info.bid
@@ -125,28 +109,28 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
     sl = float(sl)
     
     # Check if symbol is available
-    symbol_info = mt5.symbol_info(symbol)
+    symbol_info = syntheticMt5.symbol_info(symbol)
     if symbol_info is None:
         print_to_console_and_file(f"Symbol {symbol} not found")
         return False
     if not symbol_info.visible:
-        if not mt5.symbol_select(symbol, True):
+        if not syntheticMt5.symbol_select(symbol, True):
             print_to_console_and_file(f"Failed to select symbol {symbol}")
             return False
         
     request = {
-        "action": mt5.TRADE_ACTION_DEAL,
+        "action": syntheticMt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
         "volume": float(lotSizeToUse),
         "type": order_type,
         "price": float(price),
         "sl": float(sl),
         
-        "type_filling": mt5.ORDER_FILLING_FOK,
+        "type_filling": syntheticMt5.ORDER_FILLING_FOK,
         "comment": group_name,
     }
 
-    order_result = mt5.order_send(request)
+    order_result = syntheticMt5.order_send(request)
     if order_result is None:
         print_to_console_and_file("Order send failed, no result returned")
         print_to_console_and_file(f"Trade Request Details:\n"
@@ -159,7 +143,7 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
             f"Type Filling: {request['type_filling']}\n"
             f"Comment: {request['comment']}")
         return False
-    elif order_result.retcode != mt5.TRADE_RETCODE_DONE:
+    elif order_result.retcode != syntheticMt5.TRADE_RETCODE_DONE:
         print_to_console_and_file("Error placing order:" + order_result.comment)
         return False
     else:
@@ -167,7 +151,7 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
         return True
 
 def populate_telegram_groups():
-    global groups_info
+    global syntheticsyntheticGroups_info
     
     # conn = sqlite3.connect(dbPath)
     # cursor = conn.cursor()
@@ -179,15 +163,15 @@ def populate_telegram_groups():
     # """)
     # rows = cursor.fetchall()
 
-    # groups_info = {row[0]: row[1] for row in rows}
+    # syntheticGroups_info = {row[0]: row[1] for row in rows}
 
-    # Manually add "𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™" to the groups_info dictionary
-    groups_info["JDB Copy Signals"] = "110"
-    groups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
-    groups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
-    # groups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "113"
-    # groups_info["KADENFX ACADEMY"] = "114"
-    groups_info["KT Synthetics"] = "115"
+    # Manually add "𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™" to the syntheticGroups_info dictionary
+    syntheticGroups_info["JDB Copy Signals"] = "110"
+    syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
+    syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
+    # syntheticGroups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "113"
+    # syntheticGroups_info["KADENFX ACADEMY"] = "114"
+    syntheticGroups_info["KT Synthetics"] = "115"
 
 
     #conn.close()
@@ -215,9 +199,9 @@ def InitializeAccounts():
     #     # MAIN
     instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
 
-    if not mt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
+    if not syntheticMt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
         print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
-        print_to_console_and_file(f"Error: {mt5.last_error()}")
+        print_to_console_and_file(f"Error: {syntheticMt5.last_error()}")
     else:
         print_to_console_and_file(f"MT5 initialized successfully for account ID: {31699433}")
 
@@ -242,26 +226,28 @@ def calculate_stop_loss(symbol, num_pips):
     """
 
     # Get the current position for the specified symbol
-    symbol_info = mt5.symbol_info(symbol)
-        
-    if "crash" in symbol.lower():
-        position_type = 0      # Position type: 0 for Buy, 1 for Sell
-        entry_price = symbol_info.ask  # Get the entry price from the position
-    else:
-        position_type = 1      # Position type: 0 for Buy, 1 for Sell
-        entry_price = symbol_info.bid
+    symbol_info = syntheticMt5.symbol_info(symbol)
+    if symbol_info is None:
+        print(f"Error: Symbol information for {symbol} could not be retrieved.")
+    else:    
+        if "crash" in symbol.lower():
+            position_type = 0      # Position type: 0 for Buy, 1 for Sell
+            entry_price = symbol_info.ask  # Get the entry price from the position
+        else:
+            position_type = 1      # Position type: 0 for Buy, 1 for Sell
+            entry_price = symbol_info.bid
     
     
     if symbol == "Crash 300 Index":
         pip_value = 0.5
     elif symbol == "Crash 500 Index":
-        pip_value = 0.5
+        pip_value = 0.7
     elif symbol == "Crash 600 Index":
         pip_value = 0.5
     elif symbol == "Crash 900 Index":
         pip_value = 0.5
     elif symbol == "Crash 1000 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Boom 300 Index":
         pip_value = 0.5
     elif symbol == "Boom 500 Index":
@@ -293,11 +279,11 @@ async def handle_new_message(event):
     # Check if event.chat is not None
     if event.chat and hasattr(event.chat, 'title'):
         group_name = event.chat.title
-        if group_name in groups_info:
+        if group_name in syntheticGroups_info:
             if group_id not in read_messages:
                 read_messages[group_id] = set()
 
-            magic_number = groups_info.get(group_name)
+            magic_number = syntheticGroups_info.get(group_name)
             # Compare message.date with app_start_time (both are now "offset-aware")
             if message.date > app_start_time and message.id not in read_messages[group_id]:
                 media_info = ""
@@ -305,7 +291,7 @@ async def handle_new_message(event):
                 message_text = message.text.upper()  # Convert message to uppercase
                 message_date_str = message.date.strftime('%Y-%m-%d %H:%M:%S')
 
-                for phrase in phrases_to_skip:
+                for phrase in syntheticPhrases_to_skip:
                     if phrase in message_text:
                         print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
                         continue  # Skip processing this message
@@ -343,7 +329,7 @@ async def handle_new_message(event):
 
                 print_to_console_and_file('---------------------------------')
                 
-                def parse_message(text):
+                def syntheticParse_message(text):
                     text = text.upper()
 
                     trade_type = None
@@ -385,19 +371,24 @@ async def handle_new_message(event):
                     elif "CRASH1000" in text: #DREAM CHASERS F✘
                         symbol = "Crash 1000 Index"     
                         trade_type = "Sell"
+
+                    elif "BOOM 300" in text: 
+                        symbol = "BOOM 300 Index"
+                        trade_type = "Buy"
+                        
                     else:
                         return trade_type, symbol, None, None
                     
                     num_pips = 20
-                    print_to_console_and_file("Before Calculating SL")
+                    print_to_console_and_file(f"Before Calculating SL Symbol: {symbol} Num Pips: {num_pips}")
                     sl = calculate_stop_loss(symbol, num_pips)
                     print_to_console_and_file("After Calculating SL")
 
                     return trade_type, symbol, sl, price
 
-                async def parse_and_send_messages(message_text):
+                async def syntheticParse_and_send_messages(message_text):
                     try:
-                        trade_type, symbol, sl, price = parse_message(message_text)
+                        trade_type, symbol, sl, price = syntheticParse_message(message_text)
                         print_to_console_and_file(f"Trade Type: {trade_type}, Symbol: {symbol}, SL: {sl}, Price: {price}")
 
                         if trade_type is not None and symbol is not None and sl is not None:
@@ -424,14 +415,13 @@ async def handle_new_message(event):
                             f"trade_type: {trade_type if 'trade_type' in locals() or 'trade_type' in globals() else '[unknown]'}\n"
                             f"Symbol: {symbol if 'symbol' in locals() or 'symbol' in globals() else '[unknown]'}\n"
                             f"SL: {sl if 'sl' in locals() or 'sl' in globals() else '[unknown]'}\n"
-                            f"TP: {tp if 'tp' in locals() or 'tp' in globals() else '[unknown]'}\n"
                             f"Date: {message_date_str if 'message_date_str' in locals() or 'message_date_str' in globals() else '[unknown]'}\n"
                             f"Traceback:\n{tb}"  # Include the full traceback, which contains the line number
                         )
                         print_to_console_and_file(message)
 
 
-                await parse_and_send_messages(message_text)
+                await syntheticParse_and_send_messages(message_text)
                 
                 # Mark the message as read4
                 read_messages[group_id].add(message.id)
@@ -447,15 +437,15 @@ def extract_text_from_image(image_path):
         return f"Error extracting text: {e}"
 
 populate_telegram_groups()
-print_to_console_and_file(groups_info)
+print_to_console_and_file(syntheticGroups_info)
 
 async def main():
-    global symbols
-    # Populate the groups_info with data from the database
+    global syntheticSymbols
+    # Populate the syntheticGroups_info with data from the database
     
     update_task = asyncio.create_task(updateTelegramGroups())
 
-    #print(groups_info)
+    #print(syntheticGroups_info)
 
     InitializeAccounts()
     
