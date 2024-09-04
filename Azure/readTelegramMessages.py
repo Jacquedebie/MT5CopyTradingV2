@@ -11,6 +11,7 @@ import asyncio
 import re
 import requests
 import Meta3 as syntheticMt5
+import unicodedata
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -115,21 +116,21 @@ def calculate_stop_loss(symbol, num_pips):
     if symbol == "Crash 300 Index":
         pip_value = 0.5
     elif symbol == "Crash 500 Index":
-        pip_value = 0.7
+        pip_value = 1
     elif symbol == "Crash 600 Index":
         pip_value = 0.5
     elif symbol == "Crash 900 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Crash 1000 Index":
         pip_value = 1
     elif symbol == "Boom 300 Index":
         pip_value = 0.5
     elif symbol == "Boom 500 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Boom 600 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Boom 900 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Boom 1000 Index":
         pip_value = 2
         
@@ -646,77 +647,89 @@ async def handle_new_message(event):
                     message_text += extracted_text
                     print_to_console_and_file(media_info)
 
+                    if os.path.exists(sticker_path):
+                        os.remove(sticker_path)
+
                 print_to_console_and_file('---------------------------------')
-                
+                def normalize_text(text):
+                    # Normalize unicode characters
+                    text = unicodedata.normalize('NFKD', text)
+                    
+                    # Remove non-alphanumeric characters
+                    text = re.sub(r'[^A-Za-z0-9\s]', '', text)
+                    
+                    return text
+
                 def syntheticParse_message(text):
                     text = text.upper()
 
                     trade_type = None
                     price = None
                     symbol = None
-                    
+                    textToCheck = normalize_text(text)
+
                     #check if boom or crah
-                    if "BOOMM500" in text: #DREAM CHASERS F✘
+                    if "BOOMM500" in textToCheck: #DREAM CHASERS F✘
                         symbol = "Boom 500 Index"
                         trade_type = "Buy"
-                    elif "BOOM 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
+                    elif "BOOM 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
                         symbol = "Boom 500 Index"
                         trade_type = "Buy"
 
 
-                    elif "CRASH 500" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
+                    elif "CRASH 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
                         symbol = "Crash 500 Index"
                         trade_type = "Sell"
-                    elif "CRASH" in text and "500" in text:
+                    elif "CRASH" in textToCheck and "500" in textToCheck:
                         symbol = "Crash 500 Index"
                         trade_type = "Sell"
                     
-                    elif "BOOM 1K" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
+                    elif "BOOM 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
                         symbol = "Boom 1000 Index"
                         trade_type = "Buy"
-                    elif "BOOM 1000" in text: #KT Synthetics
+                    elif "BOOM 1000" in textToCheck: #KT Synthetics
                         symbol = "Boom 1000 Index"
                         trade_type = "Buy"
-                    elif "BOOM1000" in text: #DREAM CHASERS F✘
+                    elif "BOOM1000" in textToCheck: #DREAM CHASERS F✘
                         symbol = "Boom 1000 Index"
                         trade_type = "Buy"
 
-                    elif "CRASH 1K" in text: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
+                    elif "CRASH 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
                         symbol = "Crash 1000 Index"
                         trade_type = "Sell"
-                    elif "CRASH 1000" in text: #KT Synthetics
+                    elif "CRASH 1000" in textToCheck: #KT Synthetics
                         symbol = "Crash 1000 Index"
                         trade_type = "Sell"
-                    elif "CRASH1000" in text: #DREAM CHASERS F✘
+                    elif "CRASH1000" in textToCheck: #DREAM CHASERS F✘
                         symbol = "Crash 1000 Index"     
                         trade_type = "Sell"
 
-                    elif "BOOM 300" in text: 
+                    elif "BOOM 300" in textToCheck: 
                         symbol = "Boom 300 Index"
                         trade_type = "Buy"
 
-                    elif "CRASH 300" in text: 
+                    elif "CRASH 300" in textToCheck: 
                         symbol = "Crash 300 Index"
                         trade_type = "Sell"
 
-                    elif "BOOM" in text and "600" in text:
+                    elif "BOOM" in textToCheck and "600" in textToCheck:
                         symbol = "Boom 600 Index"
                         trade_type = "Buy"
 
-                    elif "BOOM" in text and "900" in text:
+                    elif "BOOM" in textToCheck and "900" in textToCheck:
                         symbol = "Boom 900 Index"
                         trade_type = "Buy"
 
-                    elif "CRASH" in text and "600" in text:
+                    elif "CRASH" in textToCheck and "600" in textToCheck:
                         symbol = "Crash 600 Index"
                         trade_type = "Sell"
 
-                    elif "CRASH" in text and "900" in text:
+                    elif "CRASH" in textToCheck and "900" in textToCheck:
                         symbol = "Crash 900 Index"
                         trade_type = "Sell"
                         
                     else:
-                        print_to_console_and_file(f"Symbol not found in text: {text}")    
+                        print_to_console_and_file(f"Symbol not found in text: {textToCheck}")    
                         return trade_type, symbol, None, None
                     
                     num_pips = 20
@@ -767,7 +780,9 @@ async def handle_new_message(event):
                 read_messages[group_id].add(message.id)
         
         else:
+            print_to_console_and_file(f"------------------------------------")
             print_to_console_and_file(f"Group not Found in List {group_name}")
+            print_to_console_and_file(f"------------------------------------")
     
     else:
         print("Chat information is not available for this event.")
