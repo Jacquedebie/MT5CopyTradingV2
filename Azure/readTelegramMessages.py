@@ -31,6 +31,7 @@ client = TelegramClient('session_name', api_id, api_hash)
 read_messages = {}
 groups_info = {}
 syntheticGroups_info = {}
+ignoreGroups_info = {}
 
 # Timestamp of when the application started, made "offset-aware"
 app_start_time = datetime.now(timezone.utc)
@@ -46,6 +47,8 @@ phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
 
 syntheticSymbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
 syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝"]
+
+
 
 
 def print_to_console_and_file(message):
@@ -174,11 +177,12 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
 
     # Check if an order with the same magic number, TP, and SL already exists
     sl = float(sl)
-    tp = "{:.2f}".format(tp)
+    tp = float(tp)  # Keep `tp` as a float
     positions = mt5.positions_get(symbol=symbol)
+
     if positions:
         for position in positions:
-            if position.magic == magic_number and position.tp == tp:
+            if position.magic == magic_number and abs(position.tp - tp) < 0.01:  # Use a tolerance for comparison
                 print_to_console_and_file(f"Position with Magic: {magic_number}, TP: {tp} already exists. Skipping position placement.")
                 return False
         
@@ -379,6 +383,9 @@ def populate_telegram_groups():
     syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
     syntheticGroups_info["KT Synthetics"] = "113"
     syntheticGroups_info["𝚄𝙽𝚃𝙾𝚄𝙲𝙷𝙰𝙱𝙻𝙴 💙💸"] = "114"
+
+    ignoreGroups_info["JDB Copy Trading Results"] = "1110"
+    ignoreGroups_info["KADENFX ACADEMY"] = "1111"
 
     conn.close()
 
@@ -780,6 +787,9 @@ async def handle_new_message(event):
                 # Mark the message as read4
                 read_messages[group_id].add(message.id)
         
+        elif group_name in ignoreGroups_info:
+            pass
+
         else:
             print_to_console_and_file(f"------------------------------------")
             print_to_console_and_file(f"Group not Found in List {group_name}")
