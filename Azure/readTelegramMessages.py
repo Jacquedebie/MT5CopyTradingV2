@@ -118,7 +118,7 @@ def calculate_stop_loss(symbol, num_pips):
     elif symbol == "Crash 500 Index":
         pip_value = 1
     elif symbol == "Crash 600 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Crash 900 Index":
         pip_value = 1
     elif symbol == "Crash 1000 Index":
@@ -252,7 +252,7 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
         "sl": float(sl),
         "magic": magic_number,
         "type_filling": mt5.ORDER_FILLING_IOC,
-        "comment": group_name
+        "comment": normalize_text(group_name)
     }
 
     order_result = mt5.order_send(request)
@@ -336,7 +336,7 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
         "sl": float(sl),
         
         "type_filling": syntheticMt5.ORDER_FILLING_FOK,
-        "comment": group_name,
+        "comment": normalize_text(group_name),
     }
 
     order_result = syntheticMt5.order_send(request)
@@ -429,6 +429,15 @@ def send_telegram_message(chat_id, message):
     }
     response = requests.post(url, data=data)
     return response.json()
+
+def normalize_text(text):
+                    # Normalize unicode characters
+                    text = unicodedata.normalize('NFKD', text)
+                    
+                    # Remove non-alphanumeric characters
+                    text = re.sub(r'[^A-Za-z0-9\s]', '', text)
+                    
+                    return text
 
 async def handle_new_message(event):
     message = event.message
@@ -651,14 +660,6 @@ async def handle_new_message(event):
                         os.remove(sticker_path)
 
                 print_to_console_and_file('---------------------------------')
-                def normalize_text(text):
-                    # Normalize unicode characters
-                    text = unicodedata.normalize('NFKD', text)
-                    
-                    # Remove non-alphanumeric characters
-                    text = re.sub(r'[^A-Za-z0-9\s]', '', text)
-                    
-                    return text
 
                 def syntheticParse_message(text):
                     text = text.upper()
