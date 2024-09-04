@@ -174,11 +174,12 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     # Check if an order with the same magic number, TP, and SL already exists
     sl = float(sl)
     tp = "{:.2f}".format(tp)
-    orders = mt5.orders_get(symbol=symbol)
-    for order in orders:
-        if order.magic == magic_number and order.tp == tp: #and order.sl == sl
-            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp} already exists. Skipping order placement.")
-            return False
+    positions = mt5.positions_get(symbol=symbol)
+    if positions:
+        for position in positions:
+            if position.magic == magic_number and position.tp == tp:
+                print_to_console_and_file(f"Position with Magic: {magic_number}, TP: {tp} already exists. Skipping position placement.")
+                return False
         
     # If price is None, assign the current market price based on trade type
     if price is None:
@@ -376,7 +377,7 @@ def populate_telegram_groups():
     syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
     syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
     syntheticGroups_info["KT Synthetics"] = "113"
-    syntheticGroups_info["UNTOUCHABLE 💙💸"] = "114"
+    syntheticGroups_info["𝚄𝙽𝚃𝙾𝚄𝙲𝙷𝙰𝙱𝙻𝙴 💙💸"] = "114"
 
     conn.close()
 
@@ -597,7 +598,7 @@ async def handle_new_message(event):
                 # Mark the message as read4
                 read_messages[group_id].add(message.id)
     
-        if group_name in syntheticGroups_info:
+        elif group_name in syntheticGroups_info:
             if group_id not in read_messages:
                 read_messages[group_id] = set()
 
@@ -765,6 +766,8 @@ async def handle_new_message(event):
                 # Mark the message as read4
                 read_messages[group_id].add(message.id)
         
+        else:
+            print_to_console_and_file(f"Group not Found in List {group_name}")
     
     else:
         print("Chat information is not available for this event.")
