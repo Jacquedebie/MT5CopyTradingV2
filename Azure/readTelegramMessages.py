@@ -123,7 +123,7 @@ def calculate_stop_loss(symbol, num_pips):
     elif symbol == "Crash 600 Index":
         pip_value = 1
     elif symbol == "Crash 900 Index":
-        pip_value = 1
+        pip_value = 1.5
     elif symbol == "Crash 1000 Index":
         pip_value = 1
     elif symbol == "Boom 300 Index":
@@ -135,7 +135,7 @@ def calculate_stop_loss(symbol, num_pips):
     elif symbol == "Boom 900 Index":
         pip_value = 1
     elif symbol == "Boom 1000 Index":
-        pip_value = 2
+        pip_value = 2.2
         
     
     price_difference = pip_value * num_pips
@@ -675,23 +675,39 @@ async def handle_new_message(event):
                     price = None
                     symbol = None
                     textToCheck = normalize_text(text)
+                    
+                    # B1K, C1K Max SL 30 candles
+                    # B5,C5 Max SL 20/30 Candles
+                    # B3 Max SL 20 Candles
+                    # C3 Max SL 10/15 Candles
 
                     #check if boom or crah
-                    if "BOOMM500" in textToCheck: #DREAM CHASERS F✘
+                    if "BOOM 500 BUY @" in textToCheck: 
+                        symbol = "Boom 500 Index"
+                        trade_type = "Buy Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                    elif "BOOMM500" in textToCheck: #DREAM CHASERS F✘
                         symbol = "Boom 500 Index"
                         trade_type = "Buy"
                     elif "BOOM 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
                         symbol = "Boom 500 Index"
                         trade_type = "Buy"
 
-
+                    elif "CRASH 500 SELL @" in textToCheck:
+                        symbol = "Crash 500 Index"
+                        trade_type = "Sell Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "CRASH 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
                         symbol = "Crash 500 Index"
                         trade_type = "Sell"
                     elif "CRASH" in textToCheck and "500" in textToCheck:
                         symbol = "Crash 500 Index"
                         trade_type = "Sell"
-                    
+
+                    elif "BOOM 1000 BUY @" in textToCheck:
+                        symbol = "Boom 1000 Index"
+                        trade_type = "Buy Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "BOOM 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
                         symbol = "Boom 1000 Index"
                         trade_type = "Buy"
@@ -702,6 +718,10 @@ async def handle_new_message(event):
                         symbol = "Boom 1000 Index"
                         trade_type = "Buy"
 
+                    elif "CRASH 1000 SELL @" in textToCheck:
+                        symbol = "Crash 1000 Index"
+                        trade_type = "Sell Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "CRASH 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
                         symbol = "Crash 1000 Index"
                         trade_type = "Sell"
@@ -712,10 +732,18 @@ async def handle_new_message(event):
                         symbol = "Crash 1000 Index"     
                         trade_type = "Sell"
 
+                    elif "BOOM 300 BUY @" in textToCheck:
+                        symbol = "Boom 300 Index"
+                        trade_type = "Buy Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "BOOM 300" in textToCheck: 
                         symbol = "Boom 300 Index"
                         trade_type = "Buy"
 
+                    elif "CRASH 300 SELL @" in textToCheck:
+                        symbol = "Crash 300 Index"
+                        trade_type = "Sell Limit"
+                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "CRASH 300" in textToCheck: 
                         symbol = "Crash 300 Index"
                         trade_type = "Sell"
@@ -793,6 +821,7 @@ async def handle_new_message(event):
         else:
             print_to_console_and_file(f"------------------------------------")
             print_to_console_and_file(f"Group not Found in List {group_name}")
+            send_telegram_message(JDBCopyTrading_chat_id, f"Group not Found in List {group_name}")
             print_to_console_and_file(f"------------------------------------")
     
     else:
