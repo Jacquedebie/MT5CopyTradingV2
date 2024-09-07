@@ -117,15 +117,15 @@ def calculate_stop_loss(symbol, num_pips):
     
     
     if symbol == "Crash 300 Index":
-        pip_value = 0.5
+        pip_value = 1
     elif symbol == "Crash 500 Index":
         pip_value = 1
     elif symbol == "Crash 600 Index":
-        pip_value = 1
+        pip_value = 2
     elif symbol == "Crash 900 Index":
         pip_value = 1.5
     elif symbol == "Crash 1000 Index":
-        pip_value = 1
+        pip_value = 2
     elif symbol == "Boom 300 Index":
         pip_value = 0.5
     elif symbol == "Boom 500 Index":
@@ -386,6 +386,9 @@ def populate_telegram_groups():
 
     ignoreGroups_info["JDB Copy Trading Results"] = "1110"
     ignoreGroups_info["KADENFX ACADEMY"] = "1111"
+    ignoreGroups_info["KT Synthetics chat"] = "1112"
+    ignoreGroups_info["CHRIS | The Gold Father 💰"] = "1113"
+    ignoreGroups_info["Thinusbluesfx_ VIP"] = "1114"
 
     conn.close()
 
@@ -739,12 +742,18 @@ async def handle_new_message(event):
                     elif "BOOM 300" in textToCheck: 
                         symbol = "Boom 300 Index"
                         trade_type = "Buy"
+                    elif "BOOM300" in textToCheck: 
+                        symbol = "Boom 300 Index"
+                        trade_type = "Buy"
 
                     elif "CRASH 300 SELL @" in textToCheck:
                         symbol = "Crash 300 Index"
                         trade_type = "Sell Limit"
                         price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
                     elif "CRASH 300" in textToCheck: 
+                        symbol = "Crash 300 Index"
+                        trade_type = "Sell"
+                    elif "CRASH300" in textToCheck: 
                         symbol = "Crash 300 Index"
                         trade_type = "Sell"
 
