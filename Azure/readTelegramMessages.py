@@ -382,7 +382,7 @@ def populate_telegram_groups():
     syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
     syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
     syntheticGroups_info["KT Synthetics"] = "113"
-    syntheticGroups_info["𝚄𝙽𝚃𝙾𝚄𝙲𝙷𝙰𝙱𝙻𝙴 💙💸"] = "114"
+    syntheticGroups_info["𝙼𝙰𝚁𝚁𝙸𝙴𝙳 𝚃𝙾 𝚃𝙷𝙴 𝙶𝙰𝙼𝙴 𝚅𝙸𝙿🤍💸"] = "114"
 
     ignoreGroups_info["JDB Copy Trading Results"] = "1110"
     ignoreGroups_info["KADENFX ACADEMY"] = "1111"
