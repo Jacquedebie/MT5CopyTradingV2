@@ -46,7 +46,7 @@ symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD','OIL-OCT24']
 phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
 
 syntheticSymbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
-syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝","❗️❗️OMG❗️❗️"]
+syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝","❗️❗️OMG❗️❗️","Mountain","Spiked","ENJOY"]
 
 
 
