@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import sqlite3
 import os
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import MetaTrader5 as mt5
 import traceback
 import asyncio
@@ -705,6 +705,9 @@ async def handle_new_message(event):
                         elif "BOOM 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
                             symbol = "Boom 500 Index"
                             trade_type = "Buy"
+                        elif "BOOM" in textToCheck and "500" in textToCheck:
+                            symbol = "Boom 500 Index"
+                            trade_type = "Buy"
 
                         elif "CRASH 500 SELL @" in textToCheck:
                             symbol = "Crash 500 Index"
@@ -730,6 +733,9 @@ async def handle_new_message(event):
                         elif "BOOM1000" in textToCheck: #DREAM CHASERS F✘
                             symbol = "Boom 1000 Index"
                             trade_type = "Buy"
+                        elif "BOOM" in textToCheck and "1000" in textToCheck:
+                            symbol = "Boom 1000 Index"
+                            trade_type = "Buy"
 
                         elif "CRASH 1000 SELL @" in textToCheck:
                             symbol = "Crash 1000 Index"
@@ -744,6 +750,9 @@ async def handle_new_message(event):
                         elif "CRASH1000" in textToCheck: #DREAM CHASERS F✘
                             symbol = "Crash 1000 Index"     
                             trade_type = "Sell"
+                        elif "CRASH" in textToCheck and "1000" in textToCheck:
+                            symbol = "Crash 1000 Index"
+                            trade_type = "Sell"
 
                         elif "BOOM 300 BUY @" in textToCheck:
                             symbol = "Boom 300 Index"
@@ -755,6 +764,9 @@ async def handle_new_message(event):
                         elif "BOOM300" in textToCheck: 
                             symbol = "Boom 300 Index"
                             trade_type = "Buy"
+                        elif "BOOM" in textToCheck and "300" in textToCheck:
+                            symbol = "Boom 300 Index"
+                            trade_type = "Buy"
 
                         elif "CRASH 300 SELL @" in textToCheck:
                             symbol = "Crash 300 Index"
@@ -764,6 +776,9 @@ async def handle_new_message(event):
                             symbol = "Crash 300 Index"
                             trade_type = "Sell"
                         elif "CRASH300" in textToCheck: 
+                            symbol = "Crash 300 Index"
+                            trade_type = "Sell"
+                        elif "CRASH" in textToCheck and "300" in textToCheck:
                             symbol = "Crash 300 Index"
                             trade_type = "Sell"
 
@@ -847,8 +862,22 @@ async def handle_new_message(event):
 
 def extract_text_from_image(image_path):
     try:
+        # Open the image
         img = Image.open(image_path)
+
+        # Convert image to grayscale
+        img = img.convert('L')
+
+        # Enhance the image contrast
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(2)
+
+        # Apply image thresholding to remove noise
+        img = img.point(lambda x: 0 if x < 140 else 255, '1')
+
+        # Apply pytesseract to extract text
         text = pytesseract.image_to_string(img)
+
         return text.strip()
     except Exception as e:
         return f"Error extracting text: {e}"
