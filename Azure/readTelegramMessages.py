@@ -46,7 +46,7 @@ symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD','OIL-OCT24']
 phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
 
 syntheticSymbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
-syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝","❗️❗️OMG❗️❗️","Mountain","Spiked","ENJOY"]
+syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝","❗️❗️OMG❗️❗️","Mountain","Spiked","ENJOY","Share results","Beautiful trade","SL was taken","profits"]
 
 
 
@@ -186,6 +186,8 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
                 print_to_console_and_file(f"Position with Magic: {magic_number}, TP: {tp} already exists. Skipping position placement.")
                 return False
         
+    all_symbols = mt5.symbols_get()
+
     # If price is None, assign the current market price based on trade type
     if price is None:
         if trade_type == "Buy" or trade_type == "Buy Limit":
@@ -383,12 +385,16 @@ def populate_telegram_groups():
     syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
     syntheticGroups_info["KT Synthetics"] = "113"
     syntheticGroups_info["𝙼𝙰𝚁𝚁𝙸𝙴𝙳 𝚃𝙾 𝚃𝙷𝙴 𝙶𝙰𝙼𝙴 𝚅𝙸𝙿🤍💸"] = "114"
+    syntheticGroups_info["T1FXTeam"] = "115"
+    syntheticGroups_info["Jayden FX Signals"] = "116"
 
     ignoreGroups_info["JDB Copy Trading Results"] = "1110"
     ignoreGroups_info["KADENFX ACADEMY"] = "1111"
     ignoreGroups_info["KT Synthetics chat"] = "1112"
     ignoreGroups_info["CHRIS | The Gold Father 💰"] = "1113"
     ignoreGroups_info["Thinusbluesfx_ VIP"] = "1114"
+    ignoreGroups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "1115"
+    ignoreGroups_info["FREE GOLD MINE BOT - TBFX"] = "1116"
 
     conn.close()
 
@@ -547,11 +553,12 @@ async def handle_new_message(event):
                     # Find take profit lines
                     tp_keywords = ['TP', 'TAKE PROFIT', 'TAKEPROFIT']
                     tp_lines = [line for line in text.split('\n') if any(kw in line.upper() for kw in tp_keywords)]
-                    
+
                     # Extract the TP values from those lines
                     tps = []
                     for line in tp_lines:
-                        match = re.search(r'\d{3,5}(?:\.\d+)?', line)
+                        # Look for floating-point numbers (like 70.44, 71.84, etc.)
+                        match = re.search(r'\d{2,5}(?:\.\d+)?', line)
                         if match:
                             tps.append(float(match.group()))
 
@@ -630,196 +637,198 @@ async def handle_new_message(event):
                 message_text = message.text.upper()  # Convert message to uppercase
                 message_date_str = message.date.strftime('%Y-%m-%d %H:%M:%S')
 
+                skip_message = False
                 for phrase in syntheticPhrases_to_skip:
                     if phrase in message_text:
                         print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
-                        continue  # Skip processing this message
+                        skip_message = True  # Set the flag to skip processing
+                        break  # Break out of the loop
 
-                print_to_console_and_file(f'--------------{group_name}-------------------')
-                print_to_console_and_file(f"{message_text} at {message_date_str}")
+                if not skip_message:
+                    print_to_console_and_file(f'--------------{group_name}-------------------')
+                    print_to_console_and_file(f"{message_text} at {message_date_str}")
 
-                # if message.photo:
-                #     media_info += "\nContains Image"
-                    
-                #     # Download the image
-                #     image_path = f"./downloaded_images/{group_name.replace(' ', '_')}_image_{message.id}.jpg"
-                #     os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                #     await client.download_media(message.photo, image_path)
-                #     media_info += f"\nImage saved to {image_path}"
-
-                #     extracted_text = extract_text_from_image(image_path)
-                #     media_info += f"\nExtracted Text: {extracted_text}"
-                #     print_to_console_and_file(media_info)
-
-                # Check if the message contains a sticker
-                if message.sticker:
-                    media_info += "\nContains Sticker"
-                    
-                    # Download the sticker
-                    sticker_path = f"./downloads/{group_name.replace(' ', '_')}_sticker_{message.id}.webp"
-                    os.makedirs(os.path.dirname(sticker_path), exist_ok=True)
-                    await client.download_media(message.sticker, sticker_path)
-                    media_info += f"\nSticker saved to {sticker_path}"
-
-                    extracted_text = extract_text_from_image(sticker_path)
-                    media_info += f"\nExtracted Text: {extracted_text}"
-                    message_text += extracted_text
-                    print_to_console_and_file(media_info)
-
-                    if os.path.exists(sticker_path):
-                        os.remove(sticker_path)
-
-                print_to_console_and_file('---------------------------------')
-
-                def syntheticParse_message(text):
-                    text = text.upper()
-
-                    trade_type = None
-                    price = None
-                    symbol = None
-                    textToCheck = normalize_text(text)
-                    
-                    # B1K, C1K Max SL 30 candles
-                    # B5,C5 Max SL 20/30 Candles
-                    # B3 Max SL 20 Candles
-                    # C3 Max SL 10/15 Candles
-
-                    #check if boom or crah
-                    if "BOOM 500 BUY @" in textToCheck: 
-                        symbol = "Boom 500 Index"
-                        trade_type = "Buy Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "BOOMM500" in textToCheck: #DREAM CHASERS F✘
-                        symbol = "Boom 500 Index"
-                        trade_type = "Buy"
-                    elif "BOOM 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
-                        symbol = "Boom 500 Index"
-                        trade_type = "Buy"
-
-                    elif "CRASH 500 SELL @" in textToCheck:
-                        symbol = "Crash 500 Index"
-                        trade_type = "Sell Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "CRASH 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
-                        symbol = "Crash 500 Index"
-                        trade_type = "Sell"
-                    elif "CRASH" in textToCheck and "500" in textToCheck:
-                        symbol = "Crash 500 Index"
-                        trade_type = "Sell"
-
-                    elif "BOOM 1000 BUY @" in textToCheck:
-                        symbol = "Boom 1000 Index"
-                        trade_type = "Buy Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "BOOM 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
-                        symbol = "Boom 1000 Index"
-                        trade_type = "Buy"
-                    elif "BOOM 1000" in textToCheck: #KT Synthetics
-                        symbol = "Boom 1000 Index"
-                        trade_type = "Buy"
-                    elif "BOOM1000" in textToCheck: #DREAM CHASERS F✘
-                        symbol = "Boom 1000 Index"
-                        trade_type = "Buy"
-
-                    elif "CRASH 1000 SELL @" in textToCheck:
-                        symbol = "Crash 1000 Index"
-                        trade_type = "Sell Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "CRASH 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
-                        symbol = "Crash 1000 Index"
-                        trade_type = "Sell"
-                    elif "CRASH 1000" in textToCheck: #KT Synthetics
-                        symbol = "Crash 1000 Index"
-                        trade_type = "Sell"
-                    elif "CRASH1000" in textToCheck: #DREAM CHASERS F✘
-                        symbol = "Crash 1000 Index"     
-                        trade_type = "Sell"
-
-                    elif "BOOM 300 BUY @" in textToCheck:
-                        symbol = "Boom 300 Index"
-                        trade_type = "Buy Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "BOOM 300" in textToCheck: 
-                        symbol = "Boom 300 Index"
-                        trade_type = "Buy"
-                    elif "BOOM300" in textToCheck: 
-                        symbol = "Boom 300 Index"
-                        trade_type = "Buy"
-
-                    elif "CRASH 300 SELL @" in textToCheck:
-                        symbol = "Crash 300 Index"
-                        trade_type = "Sell Limit"
-                        price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
-                    elif "CRASH 300" in textToCheck: 
-                        symbol = "Crash 300 Index"
-                        trade_type = "Sell"
-                    elif "CRASH300" in textToCheck: 
-                        symbol = "Crash 300 Index"
-                        trade_type = "Sell"
-
-                    elif "BOOM" in textToCheck and "600" in textToCheck:
-                        symbol = "Boom 600 Index"
-                        trade_type = "Buy"
-
-                    elif "BOOM" in textToCheck and "900" in textToCheck:
-                        symbol = "Boom 900 Index"
-                        trade_type = "Buy"
-
-                    elif "CRASH" in textToCheck and "600" in textToCheck:
-                        symbol = "Crash 600 Index"
-                        trade_type = "Sell"
-
-                    elif "CRASH" in textToCheck and "900" in textToCheck:
-                        symbol = "Crash 900 Index"
-                        trade_type = "Sell"
+                    # if message.photo:
+                    #     media_info += "\nContains Image"
                         
-                    else:
-                        print_to_console_and_file(f"Symbol not found in text: {textToCheck}")    
-                        return trade_type, symbol, None, None
-                    
-                    num_pips = 20
-                    print_to_console_and_file(f"Before Calculating SL Symbol: {symbol} Num Pips: {num_pips}")
-                    sl = calculate_stop_loss(symbol, num_pips)
-                    print_to_console_and_file("After Calculating SL")
+                    #     # Download the image
+                    #     image_path = f"./downloaded_images/{group_name.replace(' ', '_')}_image_{message.id}.jpg"
+                    #     os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                    #     await client.download_media(message.photo, image_path)
+                    #     media_info += f"\nImage saved to {image_path}"
 
-                    return trade_type, symbol, sl, price
+                    #     extracted_text = extract_text_from_image(image_path)
+                    #     media_info += f"\nExtracted Text: {extracted_text}"
+                    #     print_to_console_and_file(media_info)
 
-                async def syntheticParse_and_send_messages(message_text):
-                    try:
-                        trade_type, symbol, sl, price = syntheticParse_message(message_text)
-                        print_to_console_and_file(f"Trade Type: {trade_type}, Symbol: {symbol}, SL: {sl}, Price: {price}")
+                    # Check if the message contains a sticker
+                    if message.sticker:
+                        media_info += "\nContains Sticker"
+                        
+                        # Download the sticker
+                        sticker_path = f"./downloads/{group_name.replace(' ', '_')}_sticker_{message.id}.webp"
+                        os.makedirs(os.path.dirname(sticker_path), exist_ok=True)
+                        await client.download_media(message.sticker, sticker_path)
+                        media_info += f"\nSticker saved to {sticker_path}"
 
-                        if trade_type is not None and symbol is not None and sl is not None:
-                            if preProd:
-                                message = f"Synthetic TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰\nDate: {message_date_str}"
-                            else:
-                                message = f"Synthetic PROD!!!! TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n\nDate: {message_date_str}"
+                        extracted_text = extract_text_from_image(sticker_path)
+                        media_info += f"\nExtracted Text: {extracted_text}"
+                        message_text += extracted_text
+                        print_to_console_and_file(media_info)
+
+                        if os.path.exists(sticker_path):
+                            os.remove(sticker_path)
+
+                    print_to_console_and_file('---------------------------------')
+
+                    def syntheticParse_message(text):
+                        text = text.upper()
+
+                        trade_type = None
+                        price = None
+                        symbol = None
+                        textToCheck = normalize_text(text)
+                        
+                        # B1K, C1K Max SL 30 candles
+                        # B5,C5 Max SL 20/30 Candles
+                        # B3 Max SL 20 Candles
+                        # C3 Max SL 10/15 Candles
+
+                        #check if boom or crah
+                        if "BOOM 500 BUY @" in textToCheck: 
+                            symbol = "Boom 500 Index"
+                            trade_type = "Buy Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "BOOMM500" in textToCheck: #DREAM CHASERS F✘
+                            symbol = "Boom 500 Index"
+                            trade_type = "Buy"
+                        elif "BOOM 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics 
+                            symbol = "Boom 500 Index"
+                            trade_type = "Buy"
+
+                        elif "CRASH 500 SELL @" in textToCheck:
+                            symbol = "Crash 500 Index"
+                            trade_type = "Sell Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "CRASH 500" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™ && KT Synthetics && DREAM CHASERS F✘
+                            symbol = "Crash 500 Index"
+                            trade_type = "Sell"
+                        elif "CRASH" in textToCheck and "500" in textToCheck:
+                            symbol = "Crash 500 Index"
+                            trade_type = "Sell"
+
+                        elif "BOOM 1000 BUY @" in textToCheck:
+                            symbol = "Boom 1000 Index"
+                            trade_type = "Buy Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "BOOM 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
+                            symbol = "Boom 1000 Index"
+                            trade_type = "Buy"
+                        elif "BOOM 1000" in textToCheck: #KT Synthetics
+                            symbol = "Boom 1000 Index"
+                            trade_type = "Buy"
+                        elif "BOOM1000" in textToCheck: #DREAM CHASERS F✘
+                            symbol = "Boom 1000 Index"
+                            trade_type = "Buy"
+
+                        elif "CRASH 1000 SELL @" in textToCheck:
+                            symbol = "Crash 1000 Index"
+                            trade_type = "Sell Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "CRASH 1K" in textToCheck: #𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™
+                            symbol = "Crash 1000 Index"
+                            trade_type = "Sell"
+                        elif "CRASH 1000" in textToCheck: #KT Synthetics
+                            symbol = "Crash 1000 Index"
+                            trade_type = "Sell"
+                        elif "CRASH1000" in textToCheck: #DREAM CHASERS F✘
+                            symbol = "Crash 1000 Index"     
+                            trade_type = "Sell"
+
+                        elif "BOOM 300 BUY @" in textToCheck:
+                            symbol = "Boom 300 Index"
+                            trade_type = "Buy Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "BOOM 300" in textToCheck: 
+                            symbol = "Boom 300 Index"
+                            trade_type = "Buy"
+                        elif "BOOM300" in textToCheck: 
+                            symbol = "Boom 300 Index"
+                            trade_type = "Buy"
+
+                        elif "CRASH 300 SELL @" in textToCheck:
+                            symbol = "Crash 300 Index"
+                            trade_type = "Sell Limit"
+                            price = float(re.search(r'\d{3,5}\.\d+', textToCheck).group())
+                        elif "CRASH 300" in textToCheck: 
+                            symbol = "Crash 300 Index"
+                            trade_type = "Sell"
+                        elif "CRASH300" in textToCheck: 
+                            symbol = "Crash 300 Index"
+                            trade_type = "Sell"
+
+                        elif "BOOM" in textToCheck and "600" in textToCheck:
+                            symbol = "Boom 600 Index"
+                            trade_type = "Buy"
+
+                        elif "BOOM" in textToCheck and "900" in textToCheck:
+                            symbol = "Boom 900 Index"
+                            trade_type = "Buy"
+
+                        elif "CRASH" in textToCheck and "600" in textToCheck:
+                            symbol = "Crash 600 Index"
+                            trade_type = "Sell"
+
+                        elif "CRASH" in textToCheck and "900" in textToCheck:
+                            symbol = "Crash 900 Index"
+                            trade_type = "Sell"
                             
-                            if placeOrderNoTP(symbol, trade_type, sl, price, magic_number,group_name):
-                                send_telegram_message(JDBCopyTrading_chat_id, message)
-                            else:
-                                print_to_console_and_file("Failed to place order")
+                        else:
+                            print_to_console_and_file(f"Symbol not found in text: {textToCheck}")    
+                            return trade_type, symbol, None, None
                         
-                    
-                                            
-                    except IndexError:
-                        print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
-                    except Exception as e:
-                        tb = traceback.format_exc()
+                        num_pips = 20
+                        print_to_console_and_file(f"Before Calculating SL Symbol: {symbol} Num Pips: {num_pips}")
+                        sl = calculate_stop_loss(symbol, num_pips)
+                        print_to_console_and_file("After Calculating SL")
 
-                        message = (
-                            f"Unexpected error: {e}\n"
-                            f"From: {group_name if 'group_name' in locals() or 'group_name' in globals() else '[unknown]'}\n"
-                            f"trade_type: {trade_type if 'trade_type' in locals() or 'trade_type' in globals() else '[unknown]'}\n"
-                            f"Symbol: {symbol if 'symbol' in locals() or 'symbol' in globals() else '[unknown]'}\n"
-                            f"SL: {sl if 'sl' in locals() or 'sl' in globals() else '[unknown]'}\n"
-                            f"Date: {message_date_str if 'message_date_str' in locals() or 'message_date_str' in globals() else '[unknown]'}\n"
-                            f"Traceback:\n{tb}"  # Include the full traceback, which contains the line number
-                        )
-                        print_to_console_and_file(message)
+                        return trade_type, symbol, sl, price
 
+                    async def syntheticParse_and_send_messages(message_text):
+                        try:
+                            trade_type, symbol, sl, price = syntheticParse_message(message_text)
+                            print_to_console_and_file(f"Trade Type: {trade_type}, Symbol: {symbol}, SL: {sl}, Price: {price}")
 
-                await syntheticParse_and_send_messages(message_text)
+                            if trade_type is not None and symbol is not None and sl is not None:
+                                if preProd:
+                                    message = f"Synthetic TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n💰\nDate: {message_date_str}"
+                                else:
+                                    message = f"Synthetic PROD!!!! TRADE \nFrom: {group_name}\ntrade_type: {trade_type}\nSymbol: {symbol}\n🚫 SL: {sl}\n\nDate: {message_date_str}"
+                                
+                                if placeOrderNoTP(symbol, trade_type, sl, price, magic_number,group_name):
+                                    send_telegram_message(JDBCopyTrading_chat_id, message)
+                                else:
+                                    print_to_console_and_file("Failed to place order")
+                            
+                        
+                                                
+                        except IndexError:
+                            print_to_console_and_file(f"Error parsing message from {group_name}: {message_text}")
+                        except Exception as e:
+                            tb = traceback.format_exc()
+
+                            message = (
+                                f"Unexpected error: {e}\n"
+                                f"From: {group_name if 'group_name' in locals() or 'group_name' in globals() else '[unknown]'}\n"
+                                f"trade_type: {trade_type if 'trade_type' in locals() or 'trade_type' in globals() else '[unknown]'}\n"
+                                f"Symbol: {symbol if 'symbol' in locals() or 'symbol' in globals() else '[unknown]'}\n"
+                                f"SL: {sl if 'sl' in locals() or 'sl' in globals() else '[unknown]'}\n"
+                                f"Date: {message_date_str if 'message_date_str' in locals() or 'message_date_str' in globals() else '[unknown]'}\n"
+                                f"Traceback:\n{tb}"  # Include the full traceback, which contains the line number
+                            )
+                            print_to_console_and_file(message)
+
+                    await syntheticParse_and_send_messages(message_text)
                 
                 # Mark the message as read4
                 read_messages[group_id].add(message.id)
