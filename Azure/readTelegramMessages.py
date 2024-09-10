@@ -475,7 +475,7 @@ async def handle_new_message(event):
                 message_date_str = message.date.strftime('%Y-%m-%d %H:%M:%S')
 
                 for phrase in phrases_to_skip:
-                    if phrase in message_text:
+                    if phrase.lower() in message_text.lower():
                         print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
                         continue  # Skip processing this message
 
@@ -639,7 +639,7 @@ async def handle_new_message(event):
 
                 skip_message = False
                 for phrase in syntheticPhrases_to_skip:
-                    if phrase in message_text:
+                    if phrase.lower() in message_text.lower():
                         print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
                         skip_message = True  # Set the flag to skip processing
                         break  # Break out of the loop
