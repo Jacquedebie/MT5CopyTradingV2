@@ -48,7 +48,9 @@ client = TelegramClient('session_name', api_id, api_hash)
 groups_info = {}
 
 # List of symbols to look for
-symbols = ['XAUUSD', 'GOLD' , 'XAU/USD']  # Add more symbols as needed
+symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD','Oil-oct24']  # Add more symbols as needed
+phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
+
 #'BTCUSD', spread is te hoog
 #, 'EURUSD', 'GBPUSD', 'USDJPY', 'EURJPY', 'GBPJPY', 'GBPNZD', 'USOIL', 'USDCAD' Focus net op GOUD
 
@@ -96,10 +98,12 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
         return False
 
     # Check if an order with the same magic number, TP, and SL already exists
+    sl = float(sl)
+    tp = "{:.2f}".format(tp)
     orders = mt5.orders_get(symbol=symbol)
     for order in orders:
-        if order.magic == magic_number and order.tp == tp and order.sl == sl:
-            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp}, SL: {sl} already exists. Skipping order placement.")
+        if order.magic == magic_number and order.tp == tp: #and order.sl == sl
+            print_to_console_and_file(f"Order with Magic: {magic_number}, TP: {tp} already exists. Skipping order placement.")
             return False
         
     # If price is None, assign the current market price based on trade type
@@ -118,14 +122,13 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     price = float(price)
     sl = float(sl)
     tp = float(tp)
-
     # Check if SL is valid
     if not is_valid_sl(price, sl, trade_type, symbol_info):
         print_to_console_and_file(f"Invalid SL: {sl} for {trade_type} order at {price}. Adjusting or skipping order.")
         if trade_type == "Buy" or trade_type == "Buy Limit":
-            sl = price - (500 * symbol_info.point)
+            sl = sl - (500 * symbol_info.point)
         elif trade_type == "Sell" or trade_type == "Sell Limit":
-            sl = price + (500 * symbol_info.point)
+            sl = sl + (500 * symbol_info.point)
 
         print_to_console_and_file(f"New SL set to {sl}")
         # You may choose to return False here to skip placing the order if SL is invalid.
@@ -155,6 +158,10 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
     else:
         print_to_console_and_file(f"Unsupported trade type: {trade_type}")
         return False
+
+    price = float(price)
+    sl = float(sl)
+    tp = float(tp)
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -216,6 +223,16 @@ async def process_all_group_messages(start_date, session):
                         if latest_message.message is not None:  # Check if the message is not None
                             message_text = latest_message.message.upper()  # Convert message to uppercase
                             message_date_str = message_date.strftime('%Y-%m-%d %H:%M:%S')
+
+                            for phrase in phrases_to_skip:
+                                if phrase in message_text:
+                                    print_to_console_and_file(f"Skipping trade from {group_name} due to '{phrase}' in the message.")
+                                    continue  # Skip processing this message
+                                
+                            # if "VIP GROUP OPEN FOR" in message_text:
+                            #     print_to_console_and_file(f"Skipping trade from {group_name} due to 'VIP GROUP OPEN FOR' in the message.")
+                            #     continue  # Skip processing this message
+                            
                             print_to_console_and_file(f'--------------{group_name}-------------------')
                             print_to_console_and_file(f"{group_name}: {message_text} at {message_date_str}")
                             print_to_console_and_file('---------------------------------')
@@ -235,8 +252,6 @@ async def process_all_group_messages(start_date, session):
                                     trade_type = "Buy"
 
                                 # Determine symbol
-                                symbol = None
-                                symbols = ['XAU/USD', 'XAUUSD', 'USOIL','GOLD']  # Add other symbols as needed
                                 for sym in symbols:
                                     if sym in text:
                                         symbol = sym
