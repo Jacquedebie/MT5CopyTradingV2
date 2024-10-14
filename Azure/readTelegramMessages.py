@@ -74,7 +74,7 @@ def is_valid_sl(price, sl, trade_type, symbol_info):
     return False
 
 def adjust_stop_loss(price, sl, trade_type, symbol_info):
-    max_attempts = 10  # Prevent infinite loops by setting a maximum number of adjustments
+    max_attempts = 2  # Prevent infinite loops by setting a maximum number of adjustments
 
     while max_attempts > 0:
         if is_valid_sl(price, sl, trade_type, symbol_info):
@@ -200,6 +200,11 @@ def placeOrder(symbol, trade_type, sl, tp, price, magic_number, group_name):
             print_to_console_and_file(f"Unsupported trade type: {trade_type}")
             return False
 
+    if trade_type == "Buy":
+        price = symbol_info.ask
+    elif trade_type == "Sell":
+        price = symbol_info.bid
+        
     # Ensure price, sl, and tp are floats
     price = float(price)
     sl = float(sl)
@@ -380,13 +385,13 @@ def populate_telegram_groups():
 
     groups_info = {row[0]: row[1] for row in rows}
 
-    syntheticGroups_info["JDB Copy Synthetic"] = "110"
-    syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
-    syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
-    syntheticGroups_info["KT Synthetics"] = "113"
-    syntheticGroups_info["𝙼𝙰𝚁𝚁𝙸𝙴𝙳 𝚃𝙾 𝚃𝙷𝙴 𝙶𝙰𝙼𝙴 𝚅𝙸𝙿🤍💸"] = "114"
-    syntheticGroups_info["T1FXTeam"] = "115"
-    syntheticGroups_info["Jayden FX Signals"] = "116"
+    # syntheticGroups_info["JDB Copy Synthetic"] = "110"
+    # syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
+    # syntheticGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
+    # syntheticGroups_info["KT Synthetics"] = "113"
+    # syntheticGroups_info["𝙼𝙰𝚁𝚁𝙸𝙴𝙳 𝚃𝙾 𝚃𝙷𝙴 𝙶𝙰𝙼𝙴 𝚅𝙸𝙿🤍💸"] = "114"
+    # syntheticGroups_info["T1FXTeam"] = "115"
+    # syntheticGroups_info["Jayden FX Signals"] = "116"
 
     ignoreGroups_info["JDB Copy Trading Results"] = "1110"
     ignoreGroups_info["KADENFX ACADEMY"] = "1111"
@@ -395,6 +400,15 @@ def populate_telegram_groups():
     ignoreGroups_info["Thinusbluesfx_ VIP"] = "1114"
     ignoreGroups_info["╰┈➤ BOOM & CRASH DETECTOR <╝"] = "1115"
     ignoreGroups_info["FREE GOLD MINE BOT - TBFX"] = "1116"
+
+    ignoreGroups_info["JDB Copy Synthetic"] = "110"
+    ignoreGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
+    ignoreGroups_info["𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡"] = "112"
+    ignoreGroups_info["KT Synthetics"] = "113"
+    ignoreGroups_info["𝙼𝙰𝚁𝚁𝙸𝙴𝙳 𝚃𝙾 𝚃𝙷𝙴 𝙶𝙰𝙼𝙴 𝚅𝙸𝙿🤍💸"] = "114"
+    ignoreGroups_info["T1FXTeam"] = "115"
+    ignoreGroups_info["Jayden FX Signals"] = "116"
+    ignoreGroups_info["KADENFX SUPREME ACADEMY"] = "117"
 
     conn.close()
 
@@ -414,7 +428,7 @@ def InitializeAccounts():
     db_cursor = db_conn.cursor()
 
     # get main account
-    db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 0")
+    db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 1")
     counter = 0
     for row in db_cursor.fetchall():
         counter = counter + 1
@@ -427,13 +441,13 @@ def InitializeAccounts():
         else:
             print_to_console_and_file(f"MT5 initialized successfully for account ID: {row[0]}")
 
-        instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
+        # instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
 
-        if not syntheticMt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
-            print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
-            print_to_console_and_file(f"Error: {syntheticMt5.last_error()}")
-        else:
-            print_to_console_and_file(f"MT5 initialized successfully for account ID: {31699433}")
+        # if not syntheticMt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
+        #     print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
+        #     print_to_console_and_file(f"Error: {syntheticMt5.last_error()}")
+        # else:
+        #     print_to_console_and_file(f"MT5 initialized successfully for account ID: {31699433}")
 
     db_conn.close()
 
@@ -563,7 +577,8 @@ async def handle_new_message(event):
                             tps.append(float(match.group()))
 
                     # Extract the trade entry price (if it doesn't match SL or any TP)
-                    price_candidates = re.findall(r'\d{3,5}\.\d+', text)
+                    price_candidates = re.findall(r'\b\d{3,5}\b', text)
+
                     if price_candidates:
                         for candidate in price_candidates:
                             candidate_price = float(candidate)
@@ -865,18 +880,24 @@ def extract_text_from_image(image_path):
         # Open the image
         img = Image.open(image_path)
 
-        # Convert image to grayscale
+        # Resize the image to improve OCR accuracy (doubling the size)
+        img = img.resize((img.width * 2, img.height * 2), Image.LANCZOS)
+
+        # Convert the image to grayscale to remove color distractions
         img = img.convert('L')
 
-        # Enhance the image contrast
+        # Apply a slight blur to reduce noise
+        img = img.filter(ImageFilter.MedianFilter(size=3))
+
+        # Enhance contrast to make the text stand out more
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(2)
 
-        # Apply image thresholding to remove noise
-        img = img.point(lambda x: 0 if x < 140 else 255, '1')
+        # Apply thresholding to remove noise and enhance text clarity
+        img = img.point(lambda x: 0 if x < 150 else 255, '1')
 
-        # Apply pytesseract to extract text
-        text = pytesseract.image_to_string(img)
+        # Use pytesseract to extract text with specific configuration to handle the layout
+        text = pytesseract.image_to_string(img, config='--psm 6')
 
         return text.strip()
     except Exception as e:
