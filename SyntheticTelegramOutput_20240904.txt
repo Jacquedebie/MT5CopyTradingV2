@@ -1,0 +1,76 @@
+{'JDB Copy Signals': '110', '𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™': '111', 'DREAM CHASERS F✘': '112', '╰┈➤ BOOM & CRASH DETECTOR <╝': '113', 'KADENFX ACADEMY': '114'}
+{'JDB Copy Signals': '110', '𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™': '111', 'DREAM CHASERS F✘': '112', '╰┈➤ BOOM & CRASH DETECTOR <╝': '113', 'KADENFX ACADEMY': '114'}
+{'JDB Copy Signals': '110', '𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™': '111', '𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡': '112', 'KT Synthetics': '115', 'UNTOUCHABLE 💙💸': '116'}
+----------InitializeAccounts---------
+MT5 initialized successfully for account ID: 31699433
+Telegram groups updated
+--------------JDB Copy Signals-------------------
+A at 2024-09-03 08:09:22
+---------------------------------
+Trade Type: None, Symbol: None, SL: None, Price: None
+--------------JDB Copy Signals-------------------
+ at 2024-09-03 08:09:34
+
+Contains Sticker
+Sticker saved to ./downloads/JDB_Copy_Signals_sticker_386.webp
+Extracted Text: 2]
+
+BUY
+
+BOOM 500
+---------------------------------
+Before Calculating SL
+Stop Loss for Boom 500 Index at 0.0 with 20 pips: -10.0
+After Calculating SL
+Trade Type: Buy, Symbol: Boom 500 Index, SL: -10.0, Price: None
+Place order Boom 500 Index Buy SL: -10.0 Price: None Magic: 110
+Incorrect price for Buy. Adjusting price from None to 0.0
+Error placing order:AutoTrading disabled by client
+Failed to place order
+--------------JDB Copy Signals-------------------
+ at 2024-09-03 08:10:06
+
+Contains Sticker
+Sticker saved to ./downloads/JDB_Copy_Signals_sticker_387.webp
+Extracted Text: SELL
+
+CRASH 500
+---------------------------------
+Before Calculating SL
+Stop Loss for Crash 500 Index at 3959.905 with 20 pips: 3969.905
+After Calculating SL
+Trade Type: Sell, Symbol: Crash 500 Index, SL: 3969.905, Price: None
+Place order Crash 500 Index Sell SL: 3969.905 Price: None Magic: 110
+Incorrect price for Sell. Adjusting price from None to 3959.595
+Order placed successfully
+--------------JDB Copy Signals-------------------
+ at 2024-09-03 08:10:32
+
+Contains Sticker
+Sticker saved to ./downloads/JDB_Copy_Signals_sticker_388.webp
+Extracted Text: CRASH1000
+---------------------------------
+Before Calculating SL
+Stop Loss for Crash 1000 Index at 5855.106 with 20 pips: 5865.106
+After Calculating SL
+Trade Type: Sell, Symbol: Crash 1000 Index, SL: 5865.106, Price: None
+Place order Crash 1000 Index Sell SL: 5865.106 Price: None Magic: 110
+Incorrect price for Sell. Adjusting price from None to 5854.853
+Order placed successfully
+--------------𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡-------------------
+ at 2024-09-03 08:14:46
+---------------------------------
+Trade Type: None, Symbol: None, SL: None, Price: None
+--------------𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡-------------------
+ at 2024-09-03 08:14:50
+---------------------------------
+Trade Type: None, Symbol: None, SL: None, Price: None
+--------------𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡-------------------
+**❤️‍🔥****
+𝚃𝙰𝙺𝙴 𝙿𝚁𝙾𝙵𝙸𝚃𝚂 𝙰𝙽𝙳 ****😤****𝙻𝙴𝚃 𝚃𝙷𝙴 𝙱𝙸𝙶 𝙱𝙾𝚂𝚂𝙴𝚂 𝙷𝙾𝙻𝙳****💵** at 2024-09-03 08:16:10
+---------------------------------
+Trade Type: None, Symbol: None, SL: None, Price: None
+--------------𝙳𝚛𝚎𝚊𝚖 𝚌𝚑𝚊𝚜𝚎𝚛𝚜 𝚏𝚡-------------------
+⚪️𝚃𝙾 𝙹𝙾𝙸𝙽 𝚅𝙸𝙿 📉𝙳𝙼➡️@KRUEGERFX💙 at 2024-09-03 08:16:20
+---------------------------------
+Trade Type: None, Symbol: None, SL: None, Price: None
