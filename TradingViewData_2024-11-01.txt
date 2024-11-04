@@ -1,0 +1,64 @@
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 01:36:01.635675
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 02:39:01.508561
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 03:39:02.110113
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 04:57:01.338910
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Loaded tracking data: {}
+Order placed successfully
+update_tracking_data 47215607
+Loaded tracking data: {}
+trade_id 47215607
+after 47215607
+Updated tracking data for XAUUSD: {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 47215607}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 47215607}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 47215607}}
+Trade with order ID 47215607 for XAUUSD is closed.
+deal TradeDeal(ticket=45390193, order=47222863, time=1730457204, time_msc=1730457204098, type=0, entry=1, magic=1234, position_id=47215607, reason=5, volume=3.56, price=2749.73, commission=-4.89, swap=0.0, profit=890.0, fee=0.0, symbol='XAUUSD', comment='[tp 2749.72]', external_id='68620463')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 47215607 closed in profit 890.0.
+previous_trade_result True
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.

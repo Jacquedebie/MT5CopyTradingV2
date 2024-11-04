@@ -1,0 +1,126 @@
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 01:27:00.785140
+Saving tracking data: {}
+Tracking data reset.
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Trading is only allowed after 6 AM. Current time: 03:36:00.580320
+------------------- New Request----------------
+Loaded tracking data: {}
+previous_trade_result None
+Loaded tracking data: {}
+Order placed successfully
+update_tracking_data 809324473
+Loaded tracking data: {}
+trade_id 809324473
+after 809324473
+Updated tracking data for XAUUSD: {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809324473}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809324473}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809324473}}
+Trade with order ID 809324473 for XAUUSD is closed.
+deal TradeDeal(ticket=631929769, order=807378239, time=1730196182, time_msc=1730196182058, type=0, entry=0, magic=1234, position_id=807378239, reason=3, volume=1.0, price=2755.54, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id='')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 809324473 did not close in profit 0.0.
+previous_trade_result False
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+tracking_data {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Order placed successfully
+update_tracking_data 809466768
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+trade_id 809466768
+after 809466768
+Updated tracking data for XAUUSD: {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809466768}
+Saving tracking data: {'XAUUSD': {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809466768}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809466768}}
+Trade with order ID 809466768 for XAUUSD is closed.
+deal TradeDeal(ticket=633928445, order=809466768, time=1730284021, time_msc=1730284021692, type=1, entry=0, magic=1234, position_id=809466768, reason=3, volume=21.72, price=2784.4, commission=-76.02, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id='')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 809466768 did not close in profit 0.0.
+previous_trade_result False
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+tracking_data {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Order placed successfully
+update_tracking_data 809634294
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+trade_id 809634294
+after 809634294
+Updated tracking data for XAUUSD: {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809634294}
+Saving tracking data: {'XAUUSD': {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809634294}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809634294}}
+Trade with order ID 809634294 for XAUUSD is closed.
+All History : (TradeDeal(ticket=631929769, order=807378239, time=1730196182, time_msc=1730196182058, type=0, entry=0, magic=1234, position_id=807378239, reason=3, volume=1.0, price=2755.54, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=631962640, order=807413336, time=1730199235, time_msc=1730199235465, type=1, entry=1, magic=1234, position_id=807378239, reason=4, volume=1.0, price=2752.78, commission=-3.5, swap=0.0, profit=-276.0, fee=0.0, symbol='XAUUSD', comment='[sl 2752.78]', external_id=''), TradeDeal(ticket=632056099, order=807513111, time=1730204821, time_msc=1730204821671, type=0, entry=0, magic=1234, position_id=807513111, reason=3, volume=1.0, price=2755.97, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=632061887, order=807519403, time=1730205430, time_msc=1730205430491, type=1, entry=1, magic=1234, position_id=807513111, reason=4, volume=1.0, price=2753.17, commission=-3.5, swap=0.0, profit=-280.0, fee=0.0, symbol='XAUUSD', comment='[sl 2753.21]', external_id=''), TradeDeal(ticket=633386461, order=808891642, time=1730240791, time_msc=1730240791145, type=0, entry=0, magic=1234, position_id=808891642, reason=3, volume=1.0, price=2772.37, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633389224, order=808894553, time=1730240970, time_msc=1730240970479, type=0, entry=0, magic=1234, position_id=808894553, reason=3, volume=1.0, price=2772.46, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633396258, order=808901785, time=1730241287, time_msc=1730241287372, type=0, entry=0, magic=1234, position_id=808901785, reason=3, volume=1.0, price=2771.92, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633401829, order=808907530, time=1730241588, time_msc=1730241588484, type=0, entry=0, magic=1234, position_id=808907530, reason=3, volume=1.0, price=2772.39, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633403256, order=808908984, time=1730241669, time_msc=1730241669152, type=0, entry=0, magic=1234, position_id=808908984, reason=3, volume=1.0, price=2772.0, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633404113, order=808909868, time=1730241723, time_msc=1730241723148, type=1, entry=0, magic=1234, position_id=808909868, reason=3, volume=1.0, price=2771.84, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633404744, order=808910533, time=1730241763, time_msc=1730241763022, type=0, entry=0, magic=1234, position_id=808910533, reason=3, volume=1.0, price=2772.03, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633404793, order=808910583, time=1730241766, time_msc=1730241766316, type=0, entry=0, magic=1234, position_id=808910583, reason=3, volume=1.0, price=2771.99, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633404893, order=808910686, time=1730241775, time_msc=1730241775430, type=0, entry=0, magic=1234, position_id=808910686, reason=3, volume=1.0, price=2771.95, commission=-3.5, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633405759, order=808911571, time=1730241826, time_msc=1730241826546, type=0, entry=0, magic=1234, position_id=808911571, reason=3, volume=1.8, price=2772.09, commission=-6.3, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633405916, order=808911727, time=1730241835, time_msc=1730241835946, type=1, entry=1, magic=0, position_id=808891642, reason=0, volume=1.0, price=2772.22, commission=-3.5, swap=0.0, profit=-15.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405926, order=808911738, time=1730241836, time_msc=1730241836613, type=1, entry=1, magic=0, position_id=808894553, reason=0, volume=1.0, price=2772.23, commission=-3.5, swap=0.0, profit=-23.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405934, order=808911747, time=1730241837, time_msc=1730241837273, type=1, entry=1, magic=0, position_id=808901785, reason=0, volume=1.0, price=2772.23, commission=-3.5, swap=0.0, profit=31.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405946, order=808911759, time=1730241838, time_msc=1730241838187, type=1, entry=1, magic=0, position_id=808907530, reason=0, volume=1.0, price=2772.22, commission=-3.5, swap=0.0, profit=-17.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405958, order=808911774, time=1730241839, time_msc=1730241839049, type=1, entry=1, magic=0, position_id=808908984, reason=0, volume=1.0, price=2772.23, commission=-3.5, swap=0.0, profit=23.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405968, order=808911784, time=1730241839, time_msc=1730241839943, type=0, entry=1, magic=0, position_id=808909868, reason=0, volume=1.0, price=2772.28, commission=-3.5, swap=0.0, profit=-44.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633405991, order=808911810, time=1730241840, time_msc=1730241840807, type=1, entry=1, magic=0, position_id=808910533, reason=0, volume=1.0, price=2772.11, commission=-3.5, swap=0.0, profit=8.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633406020, order=808911840, time=1730241841, time_msc=1730241841673, type=1, entry=1, magic=0, position_id=808910583, reason=0, volume=1.0, price=2772.12, commission=-3.5, swap=0.0, profit=13.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633406036, order=808911856, time=1730241842, time_msc=1730241842583, type=1, entry=1, magic=0, position_id=808910686, reason=0, volume=1.0, price=2772.13, commission=-3.5, swap=0.0, profit=18.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633409851, order=808915820, time=1730242064, time_msc=1730242064340, type=0, entry=0, magic=1234, position_id=808915820, reason=3, volume=21.62, price=2772.9, commission=-75.67, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633415795, order=808921984, time=1730242371, time_msc=1730242371918, type=0, entry=0, magic=1234, position_id=808921984, reason=3, volume=21.62, price=2772.38, commission=-75.67, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633415840, order=808922030, time=1730242375, time_msc=1730242375434, type=0, entry=0, magic=1234, position_id=808922030, reason=3, volume=21.61, price=2772.53, commission=-75.64, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633416533, order=808922768, time=1730242419, time_msc=1730242419178, type=1, entry=1, magic=0, position_id=808911571, reason=0, volume=1.8, price=2772.59, commission=-6.3, swap=0.0, profit=90.0, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633416542, order=808922777, time=1730242419, time_msc=1730242419864, type=1, entry=1, magic=0, position_id=808915820, reason=0, volume=21.62, price=2772.58, commission=-75.67, swap=0.0, profit=-691.84, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633416554, order=808922790, time=1730242420, time_msc=1730242420830, type=1, entry=1, magic=0, position_id=808921984, reason=0, volume=21.62, price=2772.6, commission=-75.67, swap=0.0, profit=475.64, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633416568, order=808922806, time=1730242422, time_msc=1730242422036, type=1, entry=1, magic=0, position_id=808922030, reason=0, volume=21.61, price=2772.6, commission=-75.64, swap=0.0, profit=151.27, fee=0.0, symbol='XAUUSD', comment='', external_id=''), TradeDeal(ticket=633794117, order=809324473, time=1730274307, time_msc=1730274307758, type=0, entry=0, magic=1234, position_id=809324473, reason=3, volume=21.55, price=2779.69, commission=-75.43, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633821845, order=809354619, time=1730277193, time_msc=1730277193850, type=1, entry=1, magic=1234, position_id=809324473, reason=5, volume=21.55, price=2782.48, commission=-75.43, swap=0.0, profit=6012.45, fee=0.0, symbol='XAUUSD', comment='[tp 2782.47]', external_id=''), TradeDeal(ticket=633928445, order=809466768, time=1730284021, time_msc=1730284021692, type=1, entry=0, magic=1234, position_id=809466768, reason=3, volume=21.72, price=2784.4, commission=-76.02, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=633942387, order=809481412, time=1730284971, time_msc=1730284971273, type=0, entry=1, magic=1234, position_id=809466768, reason=5, volume=21.72, price=2781.69, commission=-76.02, swap=0.0, profit=5886.12, fee=0.0, symbol='XAUUSD', comment='[tp 2781.68]', external_id=''), TradeDeal(ticket=634086733, order=809634294, time=1730292482, time_msc=1730292482255, type=0, entry=0, magic=1234, position_id=809634294, reason=3, volume=21.94, price=2782.77, commission=-76.79, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id=''), TradeDeal(ticket=634087945, order=809635629, time=1730292585, time_msc=1730292585278, type=1, entry=1, magic=0, position_id=809634294, reason=0, volume=21.94, price=2783.06, commission=-76.79, swap=0.0, profit=636.26, fee=0.0, symbol='XAUUSD', comment='', external_id=''))
+deal TradeDeal(ticket=634086733, order=809634294, time=1730292482, time_msc=1730292482255, type=0, entry=0, magic=1234, position_id=809634294, reason=3, volume=21.94, price=2782.77, commission=-76.79, swap=0.0, profit=0.0, fee=0.0, symbol='XAUUSD', comment='Automated order', external_id='')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 809634294 did not close in profit 0.0.
+previous_trade_result False
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+tracking_data {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+Order placed successfully
+update_tracking_data 809636381
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+trade_id 809636381
+after 809636381
+Updated tracking data for XAUUSD: {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809636381}
+Saving tracking data: {'XAUUSD': {'total_trades': 2, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809636381}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809636381}}
+Trade with order ID 809636381 for XAUUSD is closed.
+deal TradeDeal(ticket=634089776, order=809637636, time=1730292740, time_msc=1730292740776, type=1, entry=1, magic=0, position_id=809636381, reason=0, volume=21.95, price=2784.04, commission=-76.83, swap=0.0, profit=1031.65, fee=0.0, symbol='XAUUSD', comment='', external_id='')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 809636381 closed in profit 1031.65.
+previous_trade_result True
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 809636381}}
+Trade with order ID 809636381 for XAUUSD is closed.
+deal TradeDeal(ticket=634089776, order=809637636, time=1730292740, time_msc=1730292740776, type=1, entry=1, magic=0, position_id=809636381, reason=0, volume=21.95, price=2784.04, commission=-76.83, swap=0.0, profit=1031.65, fee=0.0, symbol='XAUUSD', comment='', external_id='')
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Previous trade for XAUUSD with trade ID 809636381 closed in profit 1031.65.
+previous_trade_result True
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': None}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
