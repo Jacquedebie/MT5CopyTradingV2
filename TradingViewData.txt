@@ -1,0 +1,17 @@
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 0, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 0, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+update_tracking_data 806503291
+Loaded tracking data: {'XAUUSD': {'total_trades': 0, 'total_profit_trades': 0, 'stop_trading': 0, 'active_trade_id': None}}
+trade_id 806503291
+after 806503291
+Updated tracking data for XAUUSD: {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 806503291}
+Saving tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 806503291}}
+------------------- New Request----------------
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 806503291}}
+Trade with order ID 806503291 for XAUUSD is still open.
+No deal found for trade ID 806503291 in the last 30 days.
+previous_trade_result None
+Loaded tracking data: {'XAUUSD': {'total_trades': 1, 'total_profit_trades': 1, 'stop_trading': 1, 'active_trade_id': 806503291}}
+Trading is stopped for XAUUSD today due to a profit or max trades reached.
