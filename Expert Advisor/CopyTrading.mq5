@@ -20,6 +20,13 @@ input bool Auto_Lot_Size = 1.0;
 input double Lot_Size = 0.01; 
 input string Identification_Number = "12345678910";
 
+input int MaxTrades = 100;
+input int MaxBuyTrades = 0;
+input int MaxSellTrades = 0;
+
+input double SL_DifferenceMultiplier = 1000; //points 1 point = 1$ on 0.01
+input double TP_DifferenceMultiplier = 1000;
+
 input bool Use_Trailing_SL = true; 
 input bool Change_Order_When_Master_Change_SL_OR_TP = true; 
 
@@ -101,9 +108,93 @@ void Authenticate(string json)
     
 }
 
+int CountOpenTradesByType(ENUM_ORDER_TYPE orderType)
+{
+    int count = 0;
+    for (int i = 0; i < PositionsTotal(); i++)
+    {
+        if (m_Position.SelectByIndex(i))
+        {
+            // Convert the order type to the corresponding position type
+            if ((orderType == ORDER_TYPE_BUY && m_Position.PositionType() == POSITION_TYPE_BUY) ||
+                (orderType == ORDER_TYPE_SELL && m_Position.PositionType() == POSITION_TYPE_SELL))
+            {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+
+
+
 // Define the configurable SL and TP difference multipliers
-double SL_DifferenceMultiplier = 100; //points 1 point = 1$ on 0.01
-double TP_DifferenceMultiplier = 100;
+
+
+bool Validation(string symbol, ENUM_ORDER_TYPE orderType, double price, double sl, double tp)
+{
+    
+    double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
+
+    int openTrades = PositionsTotal();
+    
+    //MAX TRADE VALIDATION
+    if(openTrades >= MaxTrades) 
+    {
+        Print("Too many open trades.");
+        return false;
+    }
+    
+    
+    int openBuyTrades = CountOpenTradesByType(ORDER_TYPE_BUY);
+    int openSellTrades = CountOpenTradesByType(ORDER_TYPE_SELL);
+   
+    if (orderType == ORDER_TYPE_BUY && openBuyTrades >= MaxBuyTrades)
+    {
+       Print("Too many open buy trades.");
+       return false;
+    }
+   
+    if (orderType == ORDER_TYPE_SELL && openSellTrades >= MaxSellTrades)
+    {
+       Print("Too many open sell trades.");
+       return false;
+    }
+    
+    
+
+    //TP AND SL Validations
+    if(orderType == ORDER_TYPE_BUY)
+    {
+        if (sl != 0 && (sl >= price || MathAbs(price - sl) < SL_DifferenceMultiplier * point))
+        {
+            Print("Invalid Stop Loss for BUY order.");
+            return false;
+        }
+        if (tp != 0 && (tp <= price || MathAbs(tp - price) < TP_DifferenceMultiplier * point))
+        {
+            Print("Invalid Take Profit for BUY order.");
+            return false;
+        }
+    }
+    else if(orderType == ORDER_TYPE_SELL)
+    {
+        if (sl != 0 && (sl <= price || MathAbs(sl - price) < SL_DifferenceMultiplier * point))
+        {
+            Print("Invalid Stop Loss for SELL order.");
+            return false;
+        }
+        if (tp != 0 && (tp >= price || MathAbs(price - tp) < TP_DifferenceMultiplier * point))
+        {
+            Print("Invalid Take Profit for SELL order.");
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 
 void OpenTrade(string json)
 {
@@ -115,63 +206,35 @@ void OpenTrade(string json)
     {
         string symbol = jsonObj["Symbol"].ToStr();
         ENUM_ORDER_TYPE orderType = (ENUM_ORDER_TYPE)StringToInteger(jsonObj["Type"].ToStr());
-        double volume = Lot_Size;
         double price = jsonObj["Open Price"].ToDbl();
-        double sl = jsonObj["SL"].ToDbl(); 
-        double tp = jsonObj["TP"].ToDbl(); 
+        double sl = jsonObj["SL"].ToDbl();
+        double tp = jsonObj["TP"].ToDbl();
         string comment = jsonObj["Comment"].ToStr();
-        ulong magicNumber = StringToInteger(jsonObj["Ticket"].ToStr()); // Use ulong for magic number
-      
-        // Check the SL and price difference conditions
-        double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
-        
-               
-        bool conditionsMet = false;
-        
-        // Separate conditions for buy and sell
+        ulong magicNumber = StringToInteger(jsonObj["Ticket"].ToStr());
+
+        if (!Validation(symbol, orderType, price, sl, tp))
+        {
+            Print("Trade validation failed.");
+            return; 
+        }
+
+        double volume = Lot_Size;
+        bool result = false;
+        trade.SetExpertMagicNumber(magicNumber);
+
         switch(orderType)
         {
             case ORDER_TYPE_BUY:
-                if ((sl == 0 || (sl < price && MathAbs(price - sl) >= SL_DifferenceMultiplier * point)) &&
-                    (tp == 0 || (tp > price && MathAbs(tp - price) >= TP_DifferenceMultiplier * point)))
-                {
-                    conditionsMet = true;
-                }
+                result = trade.Buy(volume, symbol, price, sl, tp, comment);
                 break;
             case ORDER_TYPE_SELL:
-                if ((sl == 0 || (sl > price && MathAbs(sl - price) >= SL_DifferenceMultiplier * point)) &&
-                    (tp == 0 || (tp < price && MathAbs(price - tp) >= TP_DifferenceMultiplier * point)))
-                {
-                    conditionsMet = true;
-                }
+                result = trade.Sell(volume, symbol, price, sl, tp, comment);
                 break;
-            default:
-                Print("Unsupported order type: ", orderType);
-                return;
         }
-        
-        if (conditionsMet)
-        {
-            bool result = false;
-            trade.SetExpertMagicNumber(magicNumber);   
-            switch(orderType)
-            {
-                case ORDER_TYPE_BUY:
-                    result = trade.Buy(volume, symbol, price, sl, tp, comment);
-                    break;
-                case ORDER_TYPE_SELL:
-                    result = trade.Sell(volume, symbol, price, sl, tp, comment);
-                    break;
-            }
 
-            if(!result)
-            {
-                Print("Trade execution failed: ", trade.ResultRetcode(), " - ", trade.ResultRetcodeDescription());
-            }
-        }
-        else
+        if (!result)
         {
-            Print("Trade conditions not met: SL and TP differences are not within the specified range for the order type.");
+            Print("Trade execution failed: ", trade.ResultRetcode(), " - ", trade.ResultRetcodeDescription());
         }
     }
     else
