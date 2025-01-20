@@ -38,7 +38,7 @@ app_start_time = datetime.now(timezone.utc)
 
 PATH = os.path.abspath(__file__)
 DIRECTORY = os.path.dirname(os.path.dirname(PATH))
-dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
+# dbPath = os.path.join(DIRECTORY, "DataBases", "CopyTradingV2.db")
 
 preProd = True
 takeAllTrades = False
@@ -47,8 +47,6 @@ phrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN"]
 
 syntheticSymbols = ['BOOM500','BOOM1000','CRASH500','CRASH1000','Boom 1K','Crash 1K','Crash 500','Boom 300','BoomM500']  # Add more symbols as needed
 syntheticPhrases_to_skip = ["VIP GROUP OPEN FOR", "VIP GROUP OPEN","MONEY IN THE BANK","𝐖𝐞 𝐊𝐢𝐥𝐥𝐞𝐝","❗️❗️OMG❗️❗️","Mountain","Spiked","ENJOY","Share results","Beautiful trade","SL was taken","profits"]
-
-
 
 
 def print_to_console_and_file(message):
@@ -373,17 +371,18 @@ def placeOrderNoTP(symbol, trade_type, sl, price, magic_number, group_name):
 def populate_telegram_groups():
     global groups_info
     
-    conn = sqlite3.connect(dbPath)
-    cursor = conn.cursor()
+    # conn = sqlite3.connect(dbPath)
+    # cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT tbl_telegramGroups_GroupName, tbl_telegramGroup_MagicNumber 
-        FROM tbl_telegramGroups
-        WHERE tbl_telegramGroup_ActiveIndicator = 1
-    """)
-    rows = cursor.fetchall()
+    # cursor.execute("""
+    #     SELECT tbl_telegramGroups_GroupName, tbl_telegramGroup_MagicNumber 
+    #     FROM tbl_telegramGroups
+    #     WHERE tbl_telegramGroup_ActiveIndicator = 1
+    # """)
+    # rows = cursor.fetchall()
 
-    groups_info = {row[0]: row[1] for row in rows}
+    groups_info = {"Ben, Gold Trader": "33333"}
+    groups_info = {"GOLDHUNTER🦁| PAUL FX 🇳🇱": "4444444"}
 
     syntheticGroups_info["JDB Copy Synthetic"] = "110"
     # syntheticGroups_info["𝐒𝐜𝐚𝐥𝐩𝐞𝐫 𝐋𝐢𝐟𝐞™"] = "111"
@@ -411,7 +410,7 @@ def populate_telegram_groups():
     ignoreGroups_info["Jayden FX Signals"] = "116"
     ignoreGroups_info["KADENFX SUPREME ACADEMY"] = "117"
 
-    conn.close()
+    # conn.close()
 
 async def updateTelegramGroups():
     while True:
@@ -422,38 +421,38 @@ async def updateTelegramGroups():
 def InitializeAccounts():
     print_to_console_and_file("----------InitializeAccounts---------")
 
-    DB_CONNECTION = dbPath
+    # DB_CONNECTION = dbPath
 
-    db_conn = sqlite3.connect(DB_CONNECTION)
+    # db_conn = sqlite3.connect(DB_CONNECTION)
 
-    db_cursor = db_conn.cursor()
+    # db_cursor = db_conn.cursor()
 
-    # get main account
-    db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 1")
-    counter = 0
-    for row in db_cursor.fetchall():
-        counter = counter + 1
-        # MAIN
-        # instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
-        # if not syntheticMt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
-        #     print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
-        #     print_to_console_and_file(f"Error: {syntheticMt5.last_error()}")
-        # else:
-        #     print_to_console_and_file(f"MT5 initialized successfully for account ID: {31699433}")
+    # # get main account
+    # db_cursor.execute("SELECT tbl_account_id, tbl_account_password, tbl_account_server, tbl_account_name FROM tbl_account WHERE tbl_account_active = 1 AND tbl_account_mainaccount = 1")
+    # counter = 0
+    # for row in db_cursor.fetchall():
+    #     counter = counter + 1
+    #     # MAIN
+    #     # instance_path = os.path.join(DIRECTORY, "Instances", str(3), "terminal64.exe")
+    #     # if not syntheticMt5.initialize(login=int(31699433), password="X8@k3kHhpg!E4k9", server="Deriv-Demo", path=instance_path):
+    #     #     print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
+    #     #     print_to_console_and_file(f"Error: {syntheticMt5.last_error()}")
+    #     # else:
+    #     #     print_to_console_and_file(f"MT5 initialized successfully for account ID: {31699433}")
 
-        instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
+    instance_path = os.path.join(DIRECTORY, "Instances", str(2), "terminal64.exe")
 
-        if not mt5.initialize(login=int(row[0]), password=row[1], server=row[2], path=instance_path):
-            print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
-            print_to_console_and_file(f"Error: {mt5.last_error()}")
-        else:
-            print_to_console_and_file(f"MT5 initialized successfully for account ID: {row[0]}")
-
-        
+    if not mt5.initialize(login=int(52007136), password="ZlqgA03fF&m$az", server="ICMarketsSC-Demo", path=instance_path):
+        print_to_console_and_file("Failed to initialize MT5 terminal from " + instance_path)
+        print_to_console_and_file(f"Error: {mt5.last_error()}")
+    else:
+        print_to_console_and_file(f"MT5 initialized successfully for account ID: {52007136}")
 
         
 
-    db_conn.close()
+        
+
+    # db_conn.close()
 
 def send_telegram_message(chat_id, message):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
