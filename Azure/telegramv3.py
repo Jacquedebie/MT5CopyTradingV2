@@ -94,7 +94,8 @@ def check_trade(message_id):
 
 # Function to extract the trading pair
 def extract_pair(message_text):
-    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|[A-Z]{3,6})\b", message_text, re.IGNORECASE)
+    # Explicit list of trading pairs to match
+    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
     if pair_match:
         trading_pair = pair_match.group(1).upper()
 
@@ -104,8 +105,10 @@ def extract_pair(message_text):
 
         print_to_console_and_file(f"Extracted trading pair: {trading_pair}")
         return trading_pair
+
     print_to_console_and_file("No trading pair found.")
     return None
+
 
 # Function to extract entry value from the message
 def extract_entry_value(message_text):
@@ -512,7 +515,7 @@ async def handle_new_message(event):
                     remove_trade_from_file(reply_to_id)
                     print_to_console_and_file(f"✅ All trades closed and message ID {reply_to_id} removed.")
 
-            elif "breakeven" in message.text.lower() or "sl to be" in message.text.lower(): --Wait another setup
+            elif "breakeven" in message.text.lower() or "sl to be" in message.text.lower() or "Break Even" in message.text.lower(): #Wait another setup
                 print_to_console_and_file(f"Setting SL to break-even for all trades with magic number {trade_magic}.")
                 if set_break_even(trade_magic):
                     print_to_console_and_file(f"✅ Successfully set SL to break-even for all trades with magic number {trade_magic}.")
