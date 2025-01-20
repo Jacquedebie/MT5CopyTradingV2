@@ -3,6 +3,7 @@ import json
 from telethon import TelegramClient, events
 import MetaTrader5 as mt5
 import os
+from datetime import datetime
 
 # Define your API ID, API Hash, and phone number
 api_id = '21789309'
@@ -489,6 +490,40 @@ def update_trade_sl(magic_number, new_sl):
                 print_to_console_and_file(f"✅ Successfully updated SL for trade {position.ticket}")
     return updated_all
 
+def get_trade_details_from_mt5(magic_number):
+    """
+    Fetch the details of an active trade or pending order in MT5 by magic number.
+    """
+    # Check active positions
+    positions = mt5.positions_get()
+    if positions is None:
+        print_to_console_and_file(f"❌ Failed to retrieve positions: {mt5.last_error()}")
+    else:
+        for position in positions:
+            if position.magic == magic_number:
+                return {
+                    "entry_value": position.price_open,
+                    "sl": position.sl,
+                    "tp": position.tp,
+                    "type": "position"
+                }
+
+    # Check pending orders
+    orders = mt5.orders_get()
+    if orders is None:
+        print_to_console_and_file(f"❌ Failed to retrieve orders: {mt5.last_error()}")
+    else:
+        for order in orders:
+            if order.magic == magic_number:
+                return {
+                    "entry_value": order.price,
+                    "sl": order.sl,
+                    "tp": order.tp,
+                    "type": "order"
+                }
+
+    return None
+
 @client.on(events.NewMessage)
 async def handle_new_message(event):
     chat = await event.get_chat()
@@ -497,9 +532,11 @@ async def handle_new_message(event):
         return
 
     group_name = chat.title
+    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     message = event.message
     print_to_console_and_file("==================================================================================================")
-    print_to_console_and_file(f"New Message from {group_name}")
+    print_to_console_and_file(f"{current_timestamp} New Message from {group_name}")
     print_to_console_and_file("=====================================")
     print_to_console_and_file(message.text)
 
@@ -549,6 +586,7 @@ async def handle_new_message(event):
     process_message(group_name, message)
     print_to_console_and_file("==================================================================================================")
 
+
 @client.on(events.MessageEdited)
 async def handle_edited_message(event):
     chat = await event.get_chat()
@@ -557,19 +595,47 @@ async def handle_edited_message(event):
     if chat_title not in groups_to_monitor:
         return
 
+    # Add this line inside the function where you want the timestamp
+    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     message = event.message
     print_to_console_and_file("==================================================================================================")
-    print_to_console_and_file(f"Edited Message from {chat_title}")
+    print_to_console_and_file(f"{current_timestamp} Edited Message from {chat_title}")
     print_to_console_and_file("=====================================")
     print_to_console_and_file(message.text)
+
+    # Extract trading parameters
+    trading_pair = extract_pair(message.text)
+    entry_value = extract_entry_value(message.text)
+    sl, tp_levels = extract_tp_and_sl(message.text)
 
     # Check if the edited message is related to a trade
     trade_magic = check_trade(message.id)  # Use the message ID as the magic number
     if trade_magic:
-        
         print_to_console_and_file(f"Edited message is related to a trade with magic number: {trade_magic}")
 
-        # Close all trades if the message is edited
+        # Fetch current trade or order details from MT5
+        mt5_trade_details = get_trade_details_from_mt5(trade_magic)
+        if not mt5_trade_details:
+            print_to_console_and_file(f"❌ Could not find an active trade or pending order with magic number {trade_magic}.")
+        else:
+            # Compare the MT5 trade or order details with the edited message
+            mt5_entry = mt5_trade_details["entry_value"]
+            mt5_sl = mt5_trade_details["sl"]
+            mt5_tp = mt5_trade_details["tp"]
+
+            if (
+                mt5_entry == entry_value and
+                mt5_sl == sl and
+                mt5_tp == (tp_levels[0] if tp_levels else None)
+            ):
+                print_to_console_and_file("No changes detected in MT5 trade parameters. Ignoring the edited message.")
+                print_to_console_and_file("==================================================================================================")
+                return
+
+            print_to_console_and_file("Changes detected in MT5 trade parameters. Proceeding with message edit processing.")
+        
+        # Close all trades if necessary due to message edit
         print_to_console_and_file(f"Closing all trades for magic number {trade_magic} due to message edit.")
         if close_all_trades(trade_magic):
             remove_trade_from_file(message.id)
@@ -581,7 +647,6 @@ async def handle_edited_message(event):
     print_to_console_and_file(f"Processing edited message for group {chat_title}.")
     process_message(chat_title, message)
     print_to_console_and_file("==================================================================================================")
-
 
 async def main():
     if not connect_to_mt5():
