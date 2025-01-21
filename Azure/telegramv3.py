@@ -127,7 +127,6 @@ def extract_entry_value(message_text):
     print_to_console_and_file("No valid Entry line found.")
     return None
 
-# Function to determine order type
 def determine_order_type(trading_pair, entry_price, trade_type, margin_threshold=50):
     symbol_info = mt5.symbol_info(trading_pair)
     if not symbol_info:
@@ -152,6 +151,7 @@ def determine_order_type(trading_pair, entry_price, trade_type, margin_threshold
     print_to_console_and_file(f"❌ Could not determine order type for trade type: {trade_type}")
     return None
 
+
 # Function to place a trade
 def place_trade(symbol, entry_price, sl, tp, trade_type, lot_size=0.1, magic_number=None, group_name=None):
     symbol_info = mt5.symbol_info(symbol)
@@ -164,43 +164,50 @@ def place_trade(symbol, entry_price, sl, tp, trade_type, lot_size=0.1, magic_num
             print_to_console_and_file(f"❌ Failed to select symbol {symbol} for trading.")
             return False
 
-    order_type_map = {
-        "BUY MARKET": mt5.ORDER_TYPE_BUY,
-        "SELL MARKET": mt5.ORDER_TYPE_SELL,
-        "BUY LIMIT": mt5.ORDER_TYPE_BUY_LIMIT,
-        "SELL LIMIT": mt5.ORDER_TYPE_SELL_LIMIT
-    }
-    order_type = order_type_map.get(trade_type)
-    if not order_type:
+    # Map trade types to order types
+    if trade_type == "BUY MARKET":
+        order_type = mt5.ORDER_TYPE_BUY
+    elif trade_type == "SELL MARKET":
+        order_type = mt5.ORDER_TYPE_SELL
+    elif trade_type == "BUY LIMIT":
+        order_type = mt5.ORDER_TYPE_BUY_LIMIT
+    elif trade_type == "SELL LIMIT":
+        order_type = mt5.ORDER_TYPE_SELL_LIMIT
+    else:
         print_to_console_and_file(f"❌ Invalid trade type: {trade_type}")
         return False
 
-    # Modify comment_text based on group_name
-    if group_name == "GHP 🦁 VIP-JACKPOT 🇳🇱 FX":
-        comment_text = "GoldHunter VIP"
-    else:
-        comment_text = f"Group: {group_name}" if group_name else "Trade placed via Python script"
+    # Determine the action: market orders use `TRADE_ACTION_DEAL`, limits use `TRADE_ACTION_PENDING`
+    action = mt5.TRADE_ACTION_DEAL if "MARKET" in trade_type else mt5.TRADE_ACTION_PENDING
 
+    # Modify comment based on group
+    comment_text = (
+        "GoldHunter VIP" if group_name == "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"
+        else f"Group: {group_name}" if group_name else "Trade placed via Python script"
+    )
 
+    # Build the trade request
     request = {
-        "action": mt5.TRADE_ACTION_PENDING if "LIMIT" in trade_type else mt5.TRADE_ACTION_DEAL,
+        "action": action,
         "symbol": symbol,
-        "volume": symbol_info.volume_min,
+        "volume": lot_size,
         "type": order_type,
-        "price": entry_price if "LIMIT" in trade_type else None,
+        "price": entry_price if "LIMIT" in trade_type else None,  # Entry price only for limit orders
         "sl": sl,
         "tp": tp,
         "deviation": 10,
         "magic": magic_number,
         "comment": comment_text,
-        "type_filling": mt5.ORDER_FILLING_IOC
+        "type_filling": mt5.ORDER_FILLING_IOC,
     }
 
+    # Remove `price` key for market orders
     if "MARKET" in trade_type:
-        del request["price"]
+        request.pop("price", None)
 
     print_to_console_and_file(f"Trade request: {request}")
 
+    # Send the trade request to MT5
     result = mt5.order_send(request)
     if result is None:
         print_to_console_and_file(f"❌ mt5.order_send failed: {mt5.last_error()}")
@@ -359,7 +366,21 @@ def process_message(group_name, message):
     trading_pair = extract_pair(message.text)
     entry_value = extract_entry_value(message.text)
     sl, tp_levels = extract_tp_and_sl(message.text)
-    trade_type = "BUY" if "BUY" in message.text.upper() else "SELL" if "SELL" in message.text.upper() else None
+    trade_type = None
+
+    # Determine trade type based on message content
+    if "BUY NOW" in message.text.upper():
+        trade_type = "BUY MARKET"
+    elif "SELL NOW" in message.text.upper():
+        trade_type = "SELL MARKET"
+    elif "BUY LIMIT" in message.text.upper():
+        trade_type = "BUY LIMIT"
+    elif "SELL LIMIT" in message.text.upper():
+        trade_type = "SELL LIMIT"
+    elif "BUY" in message.text.upper():
+        trade_type = "BUY"
+    elif "SELL" in message.text.upper():
+        trade_type = "SELL"
 
     print_to_console_and_file("=====================================")
     print_to_console_and_file(f"DEBUG: Extracted values for group {group_name}:")
@@ -376,85 +397,70 @@ def process_message(group_name, message):
         # Determine if the message specifies "1 entry"
         one_entry = "1 entry" in message.text.lower()
 
-        order_type = determine_order_type(trading_pair, entry_value, trade_type)
+        # Handle MARKET orders
+        if trade_type in ["BUY MARKET", "SELL MARKET"]:
+            print_to_console_and_file(f"Placing {trade_type} order for {trading_pair}.")
+            placed = place_trade(
+                symbol=trading_pair,
+                entry_price=None,  # No entry price for market orders
+                sl=sl,
+                tp=tp_levels[0] if tp_levels else None,  # Use the first TP
+                trade_type=trade_type,
+                lot_size=0.1,
+                magic_number=magic_number,
+                group_name=group_name
+            )
+            if placed:
+                print_to_console_and_file(f"✅ Market order placed for {trading_pair} with trade type {trade_type}.")
+            else:
+                print_to_console_and_file(f"❌ Failed to place market order for {trading_pair}.")
 
-        if order_type:
-            if "LIMIT" in order_type:
-                # For LIMIT orders, check if "1 entry" is specified
-                if one_entry:
-                    # Place only one trade
+        # Handle LIMIT orders
+        elif trade_type in ["BUY LIMIT", "SELL LIMIT"]:
+            print_to_console_and_file(f"Placing {trade_type} pending order for {trading_pair}.")
+            if one_entry:
+                # Place only one trade
+                placed = place_trade(
+                    symbol=trading_pair,
+                    entry_price=entry_value,
+                    sl=sl,
+                    tp=tp_levels[0] if tp_levels else None,
+                    trade_type=trade_type,
+                    lot_size=0.01,
+                    magic_number=magic_number,
+                    group_name=group_name
+                )
+                if placed:
+                    print_to_console_and_file(f"✅ Single pending order placed for {trading_pair} at entry price: {entry_value}")
+            else:
+                # Place multiple trades progressively for all TP levels
+                last_entry_price = entry_value
+                percentage_step = 50  # Define the percentage step for progression
+                for i, tp in enumerate(tp_levels, start=1):
+                    if i > 1:
+                        # Adjust entry price progressively closer to SL
+                        price_difference = abs(last_entry_price - sl)
+                        adjustment = price_difference * (percentage_step / 100)
+                        last_entry_price += adjustment if last_entry_price < sl else -adjustment
+
                     placed = place_trade(
                         symbol=trading_pair,
-                        entry_price=entry_value,
+                        entry_price=last_entry_price,
                         sl=sl,
-                        tp=tp_levels[0] if tp_levels else None,  # Use the first TP
-                        trade_type=order_type,
+                        tp=tp,
+                        trade_type=trade_type,
                         lot_size=0.01,
                         magic_number=magic_number,
                         group_name=group_name
                     )
                     if placed:
-                        print_to_console_and_file(f"✅ Single trade placed for {trading_pair} at entry price: {entry_value}")
-                else:
-                    # Place trades progressively closer to SL for all TP levels
-                    last_entry_price = entry_value
-                    percentage_step = 50  # Define the percentage step (e.g., 20% closer to SL each time)
+                        print_to_console_and_file(f"✅ Trade placed for {trading_pair} at entry price: {last_entry_price} (TP{i})")
+        else:
+            print_to_console_and_file(f"❌ Invalid or unsupported trade type: {trade_type}")
 
-                    for i, tp in enumerate(tp_levels, start=1):
-                        if i > 1:
-                            # Calculate the midpoint price based on the percentage step
-                            price_difference = abs(last_entry_price - sl)
-                            adjustment = price_difference * (percentage_step / 100)
-                            midpoint_price = last_entry_price + adjustment if last_entry_price < sl else last_entry_price - adjustment
-                            last_entry_price = midpoint_price
-                        else:
-                            midpoint_price = entry_value
+        # Save trade details
+        save_trade(message.id, magic_number)
 
-                        placed = place_trade(
-                            symbol=trading_pair,
-                            entry_price=midpoint_price,
-                            sl=sl,
-                            tp=tp,
-                            trade_type=order_type,
-                            lot_size=0.01,
-                            magic_number=magic_number,
-                            group_name=group_name
-                        )
-                        if placed:
-                            print_to_console_and_file(f"✅ Trade placed for {trading_pair} at entry price: {midpoint_price} (TP{i})")
-            else:
-                # For MARKET orders, handle "1 entry" condition
-                if one_entry:
-                    # Place only one trade
-                    placed = place_trade(
-                        symbol=trading_pair,
-                        entry_price=entry_value,
-                        sl=sl,
-                        tp=tp_levels[0] if tp_levels else None,  # Use the first TP
-                        trade_type=order_type,
-                        lot_size=0.5,
-                        magic_number=magic_number,
-                        group_name=group_name
-                    )
-                    if placed:
-                        print_to_console_and_file(f"✅ Single trade placed for {trading_pair} at entry price: {entry_value}")
-                else:
-                    # Place trades for all TP levels
-                    for i, tp in enumerate(tp_levels, start=1):
-                        placed = place_trade(
-                            symbol=trading_pair,
-                            entry_price=entry_value,
-                            sl=sl,
-                            tp=tp,
-                            trade_type=order_type,
-                            lot_size=0.5,
-                            magic_number=magic_number,
-                            group_name=group_name
-                        )
-                        if placed:
-                            print_to_console_and_file(f"✅ Trade placed for {trading_pair} at entry price: {entry_value} (TP{i})")
-
-        save_trade(message.id, magic_number)  # Save the magic number after placing all trades
     else:
         print_to_console_and_file(f"❌ Missing required data to place the trade for group {group_name}.")
 
@@ -585,7 +591,6 @@ async def handle_new_message(event):
 
     process_message(group_name, message)
     print_to_console_and_file("==================================================================================================")
-
 
 @client.on(events.MessageEdited)
 async def handle_edited_message(event):
