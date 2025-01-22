@@ -369,18 +369,20 @@ def process_message(group_name, message):
     trade_type = None
 
     # Determine trade type based on message content
-    if "BUY NOW" in message.text.upper():
-        trade_type = "BUY MARKET"
-    elif "SELL NOW" in message.text.upper():
-        trade_type = "SELL MARKET"
-    elif "BUY LIMIT" in message.text.upper():
-        trade_type = "BUY LIMIT"
-    elif "SELL LIMIT" in message.text.upper():
+    if "SELL" in message.text.upper() and "ZONE" in message.text.upper():
         trade_type = "SELL LIMIT"
-    elif "BUY" in message.text.upper():
-        trade_type = "BUY"
+    elif "BUY" in message.text.upper() and "ZONE" in message.text.upper():
+        trade_type = "BUY LIMIT"
+    elif "SELL" in message.text.upper() and "NOW" in message.text.upper():
+        trade_type = "SELL MARKET"
+    elif "BUY" in message.text.upper() and "NOW" in message.text.upper():
+        trade_type = "BUY MARKET"
     elif "SELL" in message.text.upper():
-        trade_type = "SELL"
+        trade_type = "SELL LIMIT" if entry_value else "SELL MARKET"
+    elif "BUY" in message.text.upper():
+        trade_type = "BUY LIMIT" if entry_value else "BUY MARKET"
+    else:
+        trade_type = None
 
     print_to_console_and_file("=====================================")
     print_to_console_and_file(f"DEBUG: Extracted values for group {group_name}:")
