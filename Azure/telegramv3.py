@@ -16,7 +16,8 @@ mt5_password = "ZlqgA03fF&m$az"
 mt5_server = "ICMarketsSC-Demo"
 
 # List of groups to monitor
-groups_to_monitor = ["JDB Copy Signals", "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"]
+groups_to_monitor = ["JDB Copy Signals"]
+                     #, "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"]
 
 # File to store trade details
 trade_file = "trade_data.json"
@@ -96,7 +97,7 @@ def check_trade(message_id):
 # Function to extract the trading pair
 def extract_pair(message_text):
     # Explicit list of trading pairs to match
-    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
+    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|EURJPY|USDCHF|GBPCHF|AUDJPY|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
     if pair_match:
         trading_pair = pair_match.group(1).upper()
 
@@ -378,9 +379,9 @@ def process_message(group_name, message):
     elif "BUY" in message.text.upper() and "NOW" in message.text.upper():
         trade_type = "BUY MARKET"
     elif "SELL" in message.text.upper():
-        trade_type = "SELL LIMIT" if entry_value else "SELL MARKET"
+        trade_type = "SELL MARKET"
     elif "BUY" in message.text.upper():
-        trade_type = "BUY LIMIT" if entry_value else "BUY MARKET"
+        trade_type = "BUY MARKET"
     else:
         trade_type = None
 
@@ -428,7 +429,7 @@ def process_message(group_name, message):
                     sl=sl,
                     tp=tp_levels[0] if tp_levels else None,
                     trade_type=trade_type,
-                    lot_size=0.01,
+                    lot_size=0.1,
                     magic_number=magic_number,
                     group_name=group_name
                 )
@@ -451,7 +452,7 @@ def process_message(group_name, message):
                         sl=sl,
                         tp=tp,
                         trade_type=trade_type,
-                        lot_size=0.01,
+                        lot_size=0.1,
                         magic_number=magic_number,
                         group_name=group_name
                     )
