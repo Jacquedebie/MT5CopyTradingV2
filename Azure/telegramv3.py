@@ -16,7 +16,7 @@ mt5_password = "ZlqgA03fF&m$az"
 mt5_server = "ICMarketsSC-Demo"
 
 # List of groups to monitor
-groups_to_monitor = ["JDB Copy Signals"]
+groups_to_monitor = ["JDB Copy Signals", "ELITE PREMIUM CHANNEL - NetProfitFX VIP 🏆"]
                      #, "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"]
 
 # File to store trade details
@@ -111,12 +111,16 @@ def extract_pair(message_text):
     print_to_console_and_file("No trading pair found.")
     return None
 
-
 # Function to extract entry value from the message
 def extract_entry_value(message_text):
+    at_match = re.search(r"@\s*(\d+\.?\d*)", message_text, re.IGNORECASE)
     range_match = re.search(r"Entry.*?(\d+\.?\d*)\s*-\s*(\d+\.?\d*)", message_text, re.IGNORECASE)
     single_match = re.search(r"Entry.*?(\d+\.?\d*)", message_text, re.IGNORECASE)
 
+    if at_match:
+        entry_value = at_match.group(1)
+        print_to_console_and_file(f"Extracted entry value with @: {entry_value}")
+        return float(entry_value)
     if range_match:
         last_number = range_match.group(2)
         print_to_console_and_file(f"Extracted last number from Entry range: {last_number}")
@@ -151,7 +155,6 @@ def determine_order_type(trading_pair, entry_price, trade_type, margin_threshold
 
     print_to_console_and_file(f"❌ Could not determine order type for trade type: {trade_type}")
     return None
-
 
 # Function to place a trade
 def place_trade(symbol, entry_price, sl, tp, trade_type, lot_size=0.1, magic_number=None, group_name=None):
@@ -533,6 +536,54 @@ def get_trade_details_from_mt5(magic_number):
 
     return None
 
+def close_trade_partially(symbol, magic_number, close_fraction=0.5):
+    """
+    Close a fraction of an open trade for the given symbol and magic number.
+    """
+    positions = mt5.positions_get(symbol=symbol)
+    if positions is None:
+        print_to_console_and_file(f"❌ Failed to retrieve positions for {symbol}: {mt5.last_error()}")
+        return False
+
+    for position in positions:
+        if position.magic == magic_number:
+            # Calculate the volume to close (close_fraction of the total volume)
+            close_volume = round(position.volume * close_fraction, 2)
+
+            if close_volume < mt5.symbol_info(symbol).volume_min:
+                print_to_console_and_file(f"❌ Cannot close volume {close_volume}. Minimum allowed volume is {mt5.symbol_info(symbol).volume_min}.")
+                return False
+
+            # Determine trade type to reverse the position
+            trade_type = mt5.ORDER_TYPE_SELL if position.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
+            close_price = mt5.symbol_info_tick(symbol).bid if position.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(symbol).ask
+
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": close_volume,
+                "type": trade_type,
+                "position": position.ticket,
+                "price": close_price,
+                "deviation": 10,
+                "magic": magic_number,
+                "comment": "Partial close via Telegram signal",
+                "type_filling": mt5.ORDER_FILLING_IOC
+            }
+
+            print_to_console_and_file(f"Attempting to close {close_volume} of {symbol} trade with magic number {magic_number}.")
+            result = mt5.order_send(request)
+            if result is None or result.retcode != mt5.TRADE_RETCODE_DONE:
+                print_to_console_and_file(f"❌ Failed to partially close trade: {result}")
+                return False
+
+            print_to_console_and_file(f"✅ Successfully partially closed {close_volume} of {symbol} trade.")
+            return True
+
+    print_to_console_and_file(f"❌ No open position found for {symbol} with magic number {magic_number}.")
+    return False
+
+
 @client.on(events.NewMessage)
 async def handle_new_message(event):
     chat = await event.get_chat()
@@ -555,6 +606,28 @@ async def handle_new_message(event):
         trade_magic = check_trade(reply_to_id)
         if trade_magic:
             print_to_console_and_file(f"Reply is related to a trade with magic number: {trade_magic}")
+
+             # Partial close logic
+            if "close partially" in message.text.lower():
+                match = re.search(r"(\w{6}) ✅ Close partially", message.text)
+                if match:
+                    symbol = match.group(1).upper()  # Extract the symbol, e.g., USDJPY
+                    print_to_console_and_file(f"Detected partial close request for {symbol}.")
+                    if close_trade_partially(symbol=symbol, magic_number=trade_magic, close_fraction=0.5):
+                        print_to_console_and_file(f"✅ Successfully partially closed the trade for {symbol}.")
+
+                         # Set SL to break even for the remaining position
+                        print_to_console_and_file(f"Setting SL to break even for remaining position in {symbol}.")
+                        if set_break_even(trade_magic):
+                            print_to_console_and_file(f"✅ Successfully set SL to break-even for remaining position in {symbol}.")
+                        else:
+                            print_to_console_and_file(f"❌ Failed to set SL to break-even for remaining position in {symbol}.")
+
+                    else:
+                        print_to_console_and_file(f"❌ Failed to partially close the trade for {symbol}.")
+                else:
+                    print_to_console_and_file("❌ Could not extract symbol for partial close.")
+
             if "close" in message.text.lower() or "cancel" in message.text.lower():
                 print_to_console_and_file(f"Closing all trades for magic number {trade_magic}.")
                 if close_all_trades(trade_magic):
