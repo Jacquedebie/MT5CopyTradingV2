@@ -37,7 +37,6 @@ def print_to_console_and_file(message):
         outputfile.write(f"{message}\n")  # Write the message to the file
     print(message)  # Print the message to the console
 
-
 # Connect to MetaTrader 5
 def connect_to_mt5():
     if not mt5.initialize():
@@ -97,7 +96,7 @@ def check_trade(message_id):
 # Function to extract the trading pair
 def extract_pair(message_text):
     # Explicit list of trading pairs to match
-    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|EURJPY|USDCHF|GBPCHF|AUDJPY|USDJPY|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
+    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|EURJPY|USDCHF|GBPCHF|AUDJPY|USDJPY|EURCAD|NZDUSD|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
     if pair_match:
         trading_pair = pair_match.group(1).upper()
 
@@ -186,9 +185,12 @@ def place_trade(symbol, entry_price, sl, tp, trade_type, lot_size=0.1, magic_num
 
     # Modify comment based on group
     comment_text = (
-        "GoldHunter VIP" if group_name == "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"
-        else f"Group: {group_name}" if group_name else "Trade placed via Python script"
-    )
+    "GoldHunter VIP" if group_name == "GHP 🦁 VIP-JACKPOT 🇳🇱 FX"
+    else "NetProfitFX VIP" if group_name == "ELITE PREMIUM CHANNEL - NetProfitFX VIP 🏆"
+    else f"Group: {group_name}" if group_name
+    else "Trade placed via Python script"
+)
+
 
     # Build the trade request
     request = {
@@ -583,6 +585,64 @@ def close_trade_partially(symbol, magic_number, close_fraction=0.5):
     print_to_console_and_file(f"❌ No open position found for {symbol} with magic number {magic_number}.")
     return False
 
+def handle_reply(message, group_name):
+    reply_to_id = message.reply_to_msg_id
+    trade_magic = check_trade(reply_to_id)
+    if trade_magic:
+        print_to_console_and_file(f"Reply is related to a trade with magic number: {trade_magic}")
+
+        # Partial close logic
+        if "close partially" in message.text.lower():
+            match = re.search(r"(\w{6}) ✅ Close partially", message.text)
+            if match:
+                symbol = match.group(1).upper()
+                print_to_console_and_file(f"Detected partial close request for {symbol}.")
+                if close_trade_partially(symbol=symbol, magic_number=trade_magic, close_fraction=0.5):
+                    print_to_console_and_file(f"✅ Successfully partially closed the trade for {symbol}.")
+
+                    # Set SL to break even for the remaining position
+                    print_to_console_and_file(f"Setting SL to break even for remaining position in {symbol}.")
+                    if set_break_even(trade_magic):
+                        print_to_console_and_file(f"✅ Successfully set SL to break-even for remaining position in {symbol}.")
+                    else:
+                        print_to_console_and_file(f"❌ Failed to set SL to break-even for remaining position in {symbol}.")
+                else:
+                    print_to_console_and_file(f"❌ Failed to partially close the trade for {symbol}.")
+            else:
+                print_to_console_and_file("❌ Could not extract symbol for partial close.")
+
+        elif "close" in message.text.lower() or "cancel" in message.text.lower():
+            print_to_console_and_file(f"Closing all trades for magic number {trade_magic}.")
+            if close_all_trades(trade_magic):
+                remove_trade_from_file(reply_to_id)
+                print_to_console_and_file(f"✅ All trades closed and message ID {reply_to_id} removed.")
+
+        elif "breakeven" in message.text.lower() or "sl to be" in message.text.lower() or "Break Even" in message.text.lower():
+            print_to_console_and_file(f"Setting SL to break-even for all trades with magic number {trade_magic}.")
+            if set_break_even(trade_magic):
+                print_to_console_and_file(f"✅ Successfully set SL to break-even for all trades with magic number {trade_magic}.")
+            else:
+                print_to_console_and_file(f"❌ Failed to set SL to break-even for trades with magic number {trade_magic}.")
+
+            # Delete all limit trades specifically for "breakeven"
+            print_to_console_and_file(f"Deleting all limit trades for magic number {trade_magic}.")
+            if delete_all_limit_trades(trade_magic):
+                print_to_console_and_file(f"✅ Successfully deleted all limit trades for magic number {trade_magic}.")
+            else:
+                print_to_console_and_file(f"❌ Failed to delete some limit trades for magic number {trade_magic}.")
+
+        elif "move sl" in message.text.lower():
+            match = re.search(r"move sl[: ]\s*(\d+\.?\d*)", message.text, re.IGNORECASE)
+            if match:
+                new_sl = float(match.group(1))
+                print_to_console_and_file(f"Moving SL to {new_sl} for trades with magic number {trade_magic}.")
+                if update_trade_sl(trade_magic, new_sl):
+                    print_to_console_and_file(f"✅ Successfully moved SL to {new_sl} for trades with magic number {trade_magic}.")
+                else:
+                    print_to_console_and_file(f"❌ Failed to move SL for trades with magic number {trade_magic}.")
+    else:
+        print_to_console_and_file("❌ No trade found for the replied message.")
+
 
 @client.on(events.NewMessage)
 async def handle_new_message(event):
@@ -602,66 +662,7 @@ async def handle_new_message(event):
 
     if message.is_reply:
         # Existing logic for handling replies like "close" or "breakeven"
-        reply_to_id = message.reply_to_msg_id
-        trade_magic = check_trade(reply_to_id)
-        if trade_magic:
-            print_to_console_and_file(f"Reply is related to a trade with magic number: {trade_magic}")
-
-             # Partial close logic
-            if "close partially" in message.text.lower():
-                match = re.search(r"(\w{6}) ✅ Close partially", message.text)
-                if match:
-                    symbol = match.group(1).upper()  # Extract the symbol, e.g., USDJPY
-                    print_to_console_and_file(f"Detected partial close request for {symbol}.")
-                    if close_trade_partially(symbol=symbol, magic_number=trade_magic, close_fraction=0.5):
-                        print_to_console_and_file(f"✅ Successfully partially closed the trade for {symbol}.")
-
-                         # Set SL to break even for the remaining position
-                        print_to_console_and_file(f"Setting SL to break even for remaining position in {symbol}.")
-                        if set_break_even(trade_magic):
-                            print_to_console_and_file(f"✅ Successfully set SL to break-even for remaining position in {symbol}.")
-                        else:
-                            print_to_console_and_file(f"❌ Failed to set SL to break-even for remaining position in {symbol}.")
-
-                    else:
-                        print_to_console_and_file(f"❌ Failed to partially close the trade for {symbol}.")
-                else:
-                    print_to_console_and_file("❌ Could not extract symbol for partial close.")
-
-            if "close" in message.text.lower() or "cancel" in message.text.lower():
-                print_to_console_and_file(f"Closing all trades for magic number {trade_magic}.")
-                if close_all_trades(trade_magic):
-                    remove_trade_from_file(reply_to_id)
-                    print_to_console_and_file(f"✅ All trades closed and message ID {reply_to_id} removed.")
-
-            elif "breakeven" in message.text.lower() or "sl to be" in message.text.lower() or "Break Even" in message.text.lower(): #Wait another setup
-                print_to_console_and_file(f"Setting SL to break-even for all trades with magic number {trade_magic}.")
-                if set_break_even(trade_magic):
-                    print_to_console_and_file(f"✅ Successfully set SL to break-even for all trades with magic number {trade_magic}.")
-                else:
-                    print_to_console_and_file(f"❌ Failed to set SL to break-even for trades with magic number {trade_magic}.")
-
-                # Delete all limit trades specifically for "breakeven"
-                print_to_console_and_file(f"Deleting all limit trades for magic number {trade_magic}.")
-                if delete_all_limit_trades(trade_magic):
-                    print_to_console_and_file(f"✅ Successfully deleted all limit trades for magic number {trade_magic}.")
-                else:
-                    print_to_console_and_file(f"❌ Failed to delete some limit trades for magic number {trade_magic}.")
-
-            # New "Move SL" command
-            elif "move sl" in message.text.lower():
-                match = re.search(r"move sl[: ]\s*(\d+\.?\d*)", message.text, re.IGNORECASE)
-                if match:
-                    new_sl = float(match.group(1))
-                    print_to_console_and_file(f"Moving SL to {new_sl} for trades with magic number {trade_magic}.")
-                    if update_trade_sl(trade_magic, new_sl):
-                        print_to_console_and_file(f"✅ Successfully moved SL to {new_sl} for trades with magic number {trade_magic}.")
-                    else:
-                        print_to_console_and_file(f"❌ Failed to move SL for trades with magic number {trade_magic}.")
-
-        else:
-            print_to_console_and_file("❌ No trade found for the replied message.")
-        
+        handle_reply(message, group_name)
         print_to_console_and_file("==================================================================================================")
         return
 
@@ -676,7 +677,6 @@ async def handle_edited_message(event):
     if chat_title not in groups_to_monitor:
         return
 
-    # Add this line inside the function where you want the timestamp
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     message = event.message
@@ -685,12 +685,16 @@ async def handle_edited_message(event):
     print_to_console_and_file("=====================================")
     print_to_console_and_file(message.text)
 
-    # Extract trading parameters
+    if message.is_reply:
+        handle_reply(message, chat_title)
+        print_to_console_and_file("==================================================================================================")
+        return
+
+    # Extract trading parameters for non-reply edited messages
     trading_pair = extract_pair(message.text)
     entry_value = extract_entry_value(message.text)
     sl, tp_levels = extract_tp_and_sl(message.text)
 
-    # Check if the edited message is related to a trade
     trade_magic = check_trade(message.id)  # Use the message ID as the magic number
     if trade_magic:
         print_to_console_and_file(f"Edited message is related to a trade with magic number: {trade_magic}")
@@ -700,7 +704,6 @@ async def handle_edited_message(event):
         if not mt5_trade_details:
             print_to_console_and_file(f"❌ Could not find an active trade or pending order with magic number {trade_magic}.")
         else:
-            # Compare the MT5 trade or order details with the edited message
             mt5_entry = mt5_trade_details["entry_value"]
             mt5_sl = mt5_trade_details["sl"]
             mt5_tp = mt5_trade_details["tp"]
@@ -715,7 +718,7 @@ async def handle_edited_message(event):
                 return
 
             print_to_console_and_file("Changes detected in MT5 trade parameters. Proceeding with message edit processing.")
-        
+
         # Close all trades if necessary due to message edit
         print_to_console_and_file(f"Closing all trades for magic number {trade_magic} due to message edit.")
         if close_all_trades(trade_magic):
