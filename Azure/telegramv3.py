@@ -97,7 +97,7 @@ def check_trade(message_id):
 # Function to extract the trading pair
 def extract_pair(message_text):
     # Explicit list of trading pairs to match
-    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|EURJPY|USDCHF|GBPCHF|AUDJPY|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
+    pair_match = re.search(r"\b(GOLD|BTCUSD|XAUUSD|XAGUSD|USOIL|UKOIL|EURJPY|USDCHF|GBPCHF|AUDJPY|USDJPY|[A-Z]{3,6}USD)\b", message_text, re.IGNORECASE)
     if pair_match:
         trading_pair = pair_match.group(1).upper()
 
